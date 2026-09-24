@@ -2145,6 +2145,7 @@
   const idle = () => { const ae = document.activeElement; return $('#modal').hidden && !(ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName)); };
   function updateDemoPill() {
     const p = document.querySelector('.demo-pill');
+    if (!p) return;
     p.textContent = realOwn ? 'Kênh của anh: thật · đối thủ: mẫu' : 'Dữ liệu mẫu';
     p.title = realOwn ? 'Số liệu kênh của anh lấy từ YouTube qua OAuth; đối thủ và trend vẫn là dữ liệu mẫu' : 'Chưa nối Google OAuth, số liệu là dữ liệu mẫu';
   }

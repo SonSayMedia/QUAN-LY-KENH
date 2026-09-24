@@ -14,6 +14,7 @@ Thư mục này chứa dữ liệu THẬT: API key YouTube Data v3, OAuth Client
    ```bash
    node app/server.js
    ```
+   Muốn có icon mở nhanh ngoài màn hình Desktop: chạy **`TAO SHORTCUT NGOAI MAN HINH.bat`** (chỉ cần chạy 1 lần) — từ đó chỉ cần bấm icon "Quản lý Kênh" ngoài Desktop, không cần vào lại thư mục này nữa.
 4. Lần đầu chạy, thư mục `app/data/` sẽ tự được tạo rỗng — vào mục **Cài đặt** trong app để bắt đầu cấu hình:
    - Thêm ít nhất 1 **API key YouTube Data v3** của riêng bạn (dùng cho quét đối thủ, quét trend...).
    - Thêm **bộ OAuth** của riêng bạn để kết nối các kênh (xem hướng dẫn bên dưới).
@@ -35,5 +36,6 @@ Làm theo đúng file **`HUONG DAN CHO NGUOI KHAC KET NOI KENH.txt`** ở thư m
 - `app/` — toàn bộ mã nguồn server + giao diện (server.js, core.js, google.js, rivals.js, scan.js, explore.js, public/).
 - `app/data/` — dữ liệu thật, **không commit** (xem `.gitignore`).
 - `CHAY QUAN LY KENH.bat` — chạy nhanh trên Windows.
+- `TAO SHORTCUT NGOAI MAN HINH.bat` — tạo icon mở nhanh ngoài Desktop (chạy 1 lần).
 - `CAP NHAT.bat` — tải bản mới nhất từ GitHub + khởi động lại server.
 - `HUONG DAN CHO NGUOI KHAC KET NOI KENH.txt` — hướng dẫn OAuth chi tiết cho từng người trong team.

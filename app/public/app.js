@@ -1482,6 +1482,8 @@
     const oc = !o ? 'unset' : o.connected ? 'ok' : o.clientIdSet && o.secretSet ? 'unchecked' : 'unset';
     setLight('#oauth-pill', o && o.connected ? `Google OAuth · ${o.channels} kênh` : 'Google OAuth', oc, oc === 'unchecked' ? 'đã lưu khoá, chưa kết nối kênh nào' : o && o.connected ? `đã kết nối ${o.channels} kênh` : '', oc === 'unchecked' ? ' · chưa kết nối kênh' : undefined);
     setLight('#ai-pill', 'API 9Router', lightCls(ai ? ai.state : 'unset'), ai && ai.state === 'error' ? ai.message : '');
+    const v = api && api.version, vEl = $('#version-tag');
+    if (vEl) vEl.textContent = v && v.commit ? `v${v.commit} · ${new Date(v.date).toLocaleDateString('vi-VN')}` : '';
   }
   async function apiCall(path, body) {
     const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined);

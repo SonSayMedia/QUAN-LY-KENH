@@ -3,9 +3,24 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const PORT = Number(process.env.PORT) || 4400;
 const ROOT = path.join(__dirname, 'public');
+
+// Phiên bản code đang chạy = commit Git hiện tại (đọc 1 lần lúc khởi động, đổi khi restart sau "CAP NHAT.bat").
+// Không có Git / không phải repo Git (ví dụ tải .zip) thì bỏ qua, giao diện chỉ đơn giản không hiện version.
+const VERSION_INFO = (() => {
+  const REPO_ROOT = path.join(__dirname, '..');
+  const opts = { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'ignore'] };
+  try {
+    const commit = execSync('git rev-parse --short HEAD', opts).toString().trim();
+    const date = execSync('git log -1 --format=%cI', opts).toString().trim();
+    return { commit, date };
+  } catch (e) {
+    return { commit: '', date: '' };
+  }
+})();
 const DATA_DIR = process.env.QLK_DATA_DIR || path.join(__dirname, 'data'); // QLK_DATA_DIR chỉ dùng khi kiểm thử
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 const TYPES = {
@@ -211,6 +226,7 @@ function publicStatus() {
   const anyOk = keys.some((k) => k.state === 'ok');
   const worst = keys.find((k) => k.state === 'error') || keys[0];
   return {
+    version: VERSION_INFO,
     update: updateStatus(),
     quota: core.quotaState(), // .keys = từng khoá API riêng (label, đã dùng/10K, trạng thái) để Cài đặt hiện danh sách xoay vòng
     ai: {

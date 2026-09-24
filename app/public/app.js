@@ -212,24 +212,24 @@
   const nicheColor = (n) => { if (!n || n === NO_NICHE) return ''; let h = 0; for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return NICHE_COLORS[h % NICHE_COLORS.length]; };
   const nicheInput = (c) => {
     const nc = nicheColor(c.niche);
-    const inStyle = nc ? `background:${hexA(nc, 0.28)};border-color:${hexA(nc, 0.6)};color:#fff;font-weight:600;` : '';
-    return `<div class="nichecell"><input class="nichein ${c.niche === NO_NICHE ? 'empty' : ''}" style="${inStyle}" list="cniches" data-cmeta="niche" data-cid="${esc(c.id)}" value="${c.niche === NO_NICHE ? '' : esc(c.niche)}" placeholder="Đặt ngách…" title="Gõ hoặc chọn ngách của kênh rồi bấm ra ngoài để lưu"><select class="mktin ${c.market ? '' : 'empty'}" data-cmeta="market" data-cid="${esc(c.id)}" title="Thị trường (ngôn ngữ) của kênh">${marketOpts(c.market, true)}</select>${realOwn ? managerSelect(c) : ''}</div>`;
+    const inStyle = nc ? `background:${hexA(nc, 0.28)};border-color:${hexA(nc, 0.6)};color:${nc};font-weight:600;` : '';
+    return `<div class="nichecell"><input class="nichein ${c.niche === NO_NICHE ? 'empty' : ''}" style="${inStyle}" list="cniches" data-cmeta="niche" data-cid="${esc(c.id)}" value="${c.niche === NO_NICHE ? '' : esc(c.niche)}" placeholder="Đặt ngách…" title="Gõ hoặc chọn ngách của kênh rồi bấm ra ngoài để lưu"><select class="mktin ${c.market ? '' : 'empty'}" data-cmeta="market" data-cid="${esc(c.id)}" title="Thị trường (ngôn ngữ) của kênh">${marketOpts(c.market, true)}</select></div>`;
   };
   // Người quản lý: CHỈ chọn từ danh sách cố định (Cài đặt) — không gõ tự do, để lọc/so sánh chính xác giữa các người.
-  // Mỗi người có 1 màu tự động gán lúc thêm (managers()/addManager ở google.js) — tô luôn cả ô chọn theo màu người đang gán; chữ luôn trắng, chỉ nền/viền đổi theo màu người đó.
+  // Mỗi người có 1 màu tự động gán lúc thêm (managers()/addManager ở google.js) — tô luôn cả ô chọn theo màu người đang gán, chữ cùng màu đó.
   const managerColor = (name) => (((api && api.managers) || []).find((m) => m.name === name) || {}).color || '';
   // Thẻ đọc (không chỉnh sửa) hiển thị người quản lý — dùng ở các bảng tóm tắt (Dashboard)
   const managerBadge = (c) => {
     if (!c.manager) return '';
     const col = managerColor(c.manager);
-    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:#fff;` : '';
+    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:${col};` : '';
     return `<span class="tag" style="${style}">${esc(c.manager)}</span>`;
   };
-  const nicheTag = (n) => { if (!n || n === NO_NICHE) return ''; const nc = nicheColor(n); return `<span class="tag" style="background:${hexA(nc, 0.28)};border:1px solid ${hexA(nc, 0.6)};color:#fff;">${esc(n)}</span>`; };
+  const nicheTag = (n) => { if (!n || n === NO_NICHE) return ''; const nc = nicheColor(n); return `<span class="tag" style="background:${hexA(nc, 0.28)};border:1px solid ${hexA(nc, 0.6)};color:${nc};">${esc(n)}</span>`; };
   const managerSelect = (c) => {
     const list = (api && api.managers) || [];
     const col = c.manager ? managerColor(c.manager) : '';
-    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:#fff;font-weight:600;` : '';
+    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:${col};font-weight:600;` : '';
     return `<select class="mktin ${c.manager ? '' : 'empty'}" style="${style}" data-cmeta="manager" data-cid="${esc(c.id)}" title="Người quản lý kênh này"><option value="" style="background:#101017;color:#e8e8ef;">— chưa gán —</option>${list.map((m) => `<option value="${esc(m.name)}" ${c.manager === m.name ? 'selected' : ''} style="background:#101017;color:#e8e8ef;">${esc(m.name)}</option>`).join('')}</select>`;
   };
   function nicheList() {
@@ -257,7 +257,8 @@
     const rows = list.map((c) => `
       <tr class="click" data-go="#/channel/${c.id}">
         <td class="l"><div class="chan"><button class="pin ${pins.includes(c.id) ? 'on' : ''}" data-act="pin" data-v="${c.id}" title="Ghim lên đầu">${pins.includes(c.id) ? '★' : '☆'}</button>${avatar(c)}<div><div class="n">${esc(c.name)}${c.noPost ? ' <span class="tag" title="Đã ngừng đăng bài — không nhắc lịch đăng">⏸ Ngừng đăng</span>' : ''}${notes[c.id] ? ' <span title="' + esc(notes[c.id]) + '">📝</span>' : ''}</div><div class="s">${realOwn && (c.where || c.gmail) ? esc([c.where, c.gmail].filter(Boolean).join(' · ')) : (c.country ? esc(c.country) + ' · ' : '') + 'Đã kết nối'}</div></div></div></td>
-        <td class="l">${realOwn ? nicheInput(c) : `${nicheTag(c.niche)} ${managerBadge(c)}`}</td>
+        <td class="l">${realOwn ? nicheInput(c) : nicheTag(c.niche)}</td>
+        <td class="l">${realOwn ? managerSelect(c) : managerBadge(c)}</td>
         <td class="big">${fmt(c.videos)}</td>
         <td>${newCell(gain(c.subs, 1), last(c.subs))}</td>
         <td>${newCell(gain(c.views, 1), last(c.views))}</td>
@@ -276,8 +277,8 @@
       <button class="btn sm" data-act="csvOwn">Xuất CSV</button></div>`;
     return head(ICON.tv, 'Quản lý Kênh', `Danh sách kênh · ${D.OWN.length} kênh`, `${updateNote()}<button class="btn primary" data-act="addOwn">+ Thêm kênh</button>`) + apiBanner() + noNicheBanner() + strip + `<datalist id="cniches">${nicheList().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <div class="card tablewrap"><table class="stk">
-        <thead><tr><th class="l">Tên kênh</th><th class="l">Chủ đề / Người quản lý</th><th>Tổng video</th><th>Tổng SUB<br><small>+ mới theo ngày</small></th><th>Tổng lượt xem<br><small>+ mới theo ngày</small></th><th>Xu hướng 28 ngày</th><th>Tương tác<br><small>bình luận chưa trả lời</small></th><th>Doanh thu 28 ngày<br><small>ước tính (USD)</small></th><th class="l">Tình trạng</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="10" class="l note">Không có kênh nào phù hợp bộ lọc.</td></tr>'}</tbody></table></div>
+        <thead><tr><th class="l">Tên kênh</th><th class="l">Chủ đề</th><th class="l">Người quản lý</th><th>Tổng video</th><th>Tổng SUB<br><small>+ mới theo ngày</small></th><th>Tổng lượt xem<br><small>+ mới theo ngày</small></th><th>Xu hướng 28 ngày</th><th>Tương tác<br><small>bình luận chưa trả lời</small></th><th>Doanh thu 28 ngày<br><small>ước tính (USD)</small></th><th class="l">Tình trạng</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="11" class="l note">Không có kênh nào phù hợp bộ lọc.</td></tr>'}</tbody></table></div>
       <p class="note">“+ mới theo ngày” tính theo ngày dương lịch (0h–24h) như YouTube Studio. Cột Tình trạng: đỏ nếu lượt xem 7 ngày giảm quá ${Math.round(HEALTH.dropRed * 100)}% hoặc ${HEALTH.staleRed} ngày chưa có video; vàng nếu giảm quá ${Math.round((1 - HEALTH.dropAmber) * 100)}%, ${HEALTH.staleAmber} ngày chưa có video hoặc SUB không tăng 7 ngày.</p>`;
   }
 

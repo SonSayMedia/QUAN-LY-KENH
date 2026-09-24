@@ -39,9 +39,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes blink { 50% { opacity: .3; } }
 .topbar { gap: 14px; }
 .api-pill { padding: 4px 11px 4px 9px; font-size: 11.5px; }
-@media (max-width: 1500px) { .demo-pill { display: none; } #api-pill { margin-left: auto; } }
-@media (max-width: 1340px) { .topbar { flex-wrap: wrap; height: auto; padding: 8px 20px; row-gap: 8px; } .brand { order: 1; } #api-pill { order: 2; margin-left: auto; } #oauth-pill { order: 2; } #ai-pill { order: 2; } #nav { order: 3; width: 100%; } }
-.demo-pill { margin-left: auto; font-size: 11px; color: var(--amber); border: 1px solid rgba(245,165,36,.4); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+/* Neo cố định cả cụm 3 ô trạng thái API vào đúng góc trên cùng bên phải của thanh topbar, không phụ thuộc logo/menu dài hay ngắn, không bao giờ bị rớt xuống dòng khác. */
+.api-pills { position: absolute; top: 50%; right: 24px; transform: translateY(-50%); display: flex; align-items: center; gap: 10px; }
+#nav { padding-right: 340px; }
+@media (max-width: 1340px) { .topbar { height: auto; min-height: 52px; padding: 8px 20px; } .api-pills { position: static; transform: none; margin-left: auto; } #nav { padding-right: 0; order: 3; width: 100%; } .topbar { flex-wrap: wrap; row-gap: 8px; } .brand { order: 1; } .api-pills { order: 2; } }
+@media (max-width: 700px) { .demo-pill { display: none; } }
+.demo-pill { font-size: 11px; color: var(--amber); border: 1px solid rgba(245,165,36,.4); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
 .version-tag { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 main { max-width: 1780px; margin: 0 auto; padding: 24px 24px 60px; }
@@ -412,6 +415,13 @@ svg.wide { width: 100%; height: 56px; display: block; margin-top: 6px; }
 @media (max-width: 860px) { .day { min-height: 70px; } .ev { display: none; } }
 .set-card { padding: 18px 20px; margin-bottom: 14px; }
 .set-card h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+.conncard > summary { cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+.conncard > summary::-webkit-details-marker { display: none; }
+.conncard > summary::marker { content: ''; }
+.conncard > summary h3 { margin-bottom: 0; }
+.conncard .chev { display: inline-block; opacity: .6; transition: transform .15s; font-style: normal; }
+.conncard:not([open]) .chev { transform: rotate(-90deg); }
+.conncard:not([open]) > *:not(summary) { display: none !important; }
 .set-card .desc { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
 .set-card .row { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
 .set-card .row label { color: var(--muted); font-size: 12.5px; }

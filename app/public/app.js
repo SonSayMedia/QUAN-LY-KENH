@@ -275,7 +275,7 @@
       ${realOwn ? `<select data-act="chManager"><option value="all" ${state.chManager === 'all' ? 'selected' : ''}>Mọi người quản lý</option><option value="" ${state.chManager === '' ? 'selected' : ''}>— chưa gán —</option>${((api && api.managers) || []).map((m) => `<option value="${esc(m.name)}" ${state.chManager === m.name ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select>` : ''}
       <select data-act="chSort"><option value="attn" ${state.chSort === 'attn' ? 'selected' : ''}>Cần chú ý lên đầu</option><option value="orig" ${state.chSort === 'orig' ? 'selected' : ''}>Thứ tự gốc</option></select>
       <button class="btn sm" data-act="csvOwn">Xuất CSV</button></div>`;
-    return head(ICON.tv, 'Quản lý Kênh', `Danh sách kênh · ${D.OWN.length} kênh`, `${updateNote()}<button class="btn primary" data-act="addOwn">+ Thêm kênh</button>`) + apiBanner() + noNicheBanner() + strip + `<datalist id="cniches">${nicheList().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+    return head(ICON.tv, 'Quản lý Kênh', `Danh sách kênh · ${D.OWN.length} kênh`, `${updateNote()}<button class="btn" data-act="refresh">Cập nhật ngay</button><button class="btn primary" data-act="addOwn">+ Thêm kênh</button>`) + apiBanner() + noNicheBanner() + strip + `<datalist id="cniches">${nicheList().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <div class="card tablewrap"><table class="stk">
         <thead><tr><th class="l">Tên kênh</th><th class="l">Chủ đề</th><th class="l">Người quản lý</th><th>Tổng video</th><th>Tổng SUB<br><small>+ mới theo ngày</small></th><th>Tổng lượt xem<br><small>+ mới theo ngày</small></th><th>Xu hướng 28 ngày</th><th>Tương tác<br><small>bình luận chưa trả lời</small></th><th>Doanh thu 28 ngày<br><small>ước tính (USD)</small></th><th class="l">Tình trạng</th><th></th></tr></thead>
         <tbody>${rows || '<tr><td colspan="11" class="l note">Không có kênh nào phù hợp bộ lọc.</td></tr>'}</tbody></table></div>
@@ -2287,7 +2287,7 @@
     const can = cl.length > 0;
     const chosen = chosenClient(cl);
     const clientSel = can ? `<div class="row" style="margin-bottom:10px"><label for="oauth-client">Kết nối kênh mới bằng bộ</label><select id="oauth-client">${cl.map((c) => `<option value="${esc(c.key)}" ${c.key === chosen ? 'selected' : ''}>${esc(c.label)} — đã dùng ${c.lifetime}/100 suất</option>`).join('')}</select></div>` : '';
-    return `<div class="card set-card"><h3>Kênh đã kết nối <span class="tag ${conns.length ? 'green' : 'amber'}">${conns.length} kênh</span></h3>
+    return `<details class="card set-card conncard" ${store.get('qlk_conn_open', true) ? 'open' : ''}><summary><h3>Kênh đã kết nối <span class="tag ${conns.length ? 'green' : 'amber'}">${conns.length} kênh</span></h3><i class="chev">▾</i></summary>
       <div class="desc"><b>Mỗi kênh cấp quyền riêng.</b> App <b>không tự mở trình duyệt</b> của máy này: anh copy link rồi dán vào <b>đúng hồ sơ GPM / trình duyệt VPS đã đăng nhập Gmail của kênh đó</b>. Không đăng nhập Gmail của kênh vào trình duyệt của máy này.</div>
       <datalist id="cniches">${niches.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       ${rows || '<div class="note" style="margin-bottom:8px">Chưa kết nối kênh nào.</div>'}
@@ -2304,7 +2304,7 @@
         <div class="vps-row"><button class="btn" data-act="copyGoogleLink" ${can ? '' : 'disabled'}>Sao chép link Google</button></div>
         <div class="vps-row"><input id="oauth-paste" type="text" placeholder="Dán địa chỉ http://localhost:4400/oauth/callback?code=…" ${can ? '' : 'disabled'}><button class="btn primary" data-act="completeOauth" ${can ? '' : 'disabled'}>Hoàn tất kết nối</button></div>
       </details>
-      <div class="note" style="margin-top:8px">Tự đồng bộ mỗi giờ. Khoá làm mới (refresh token) lưu trong <code>app/data/channels.json</code> trên máy, không hiện ra giao diện.</div></div>`;
+      <div class="note" style="margin-top:8px">Tự đồng bộ mỗi giờ. Khoá làm mới (refresh token) lưu trong <code>app/data/channels.json</code> trên máy, không hiện ra giao diện.</div></details>`;
   }
   async function runUpdateNow() {
     toast('Đang chạy cập nhật…');
@@ -2665,6 +2665,7 @@
     if (e.target.classList.contains('digest')) store.set('qlk_digest', e.target.open);
     if (e.target.classList.contains('profcard')) state.profOpen = e.target.open;
     if (e.target.classList.contains('dhist')) state.histOpen = e.target.open;
+    if (e.target.classList.contains('conncard')) store.set('qlk_conn_open', e.target.open);
     if (e.target.classList.contains('dashsec')) {
       const id = e.target.dataset.dashid;
       if (e.target.open) delete dashClosed[id]; else dashClosed[id] = true;

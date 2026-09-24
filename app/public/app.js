@@ -70,6 +70,12 @@
   let removedIds = store.get('qlk_removed', []);
   let pins = store.get('qlk_pins', []);
   let notes = store.get('qlk_notes', {});
+  let dashClosed = store.get('qlk_dashClosed', {});
+  // Thanh tiêu đề của 1 khối trên Dashboard, thu gọn/mở rộng được (nhớ trạng thái qua store)
+  function dashSection(id, cls, summaryHtml, bodyHtml) {
+    const closed = !!dashClosed[id];
+    return `<details class="card ${cls} dashsec" data-dashid="${esc(id)}" ${closed ? '' : 'open'}><summary class="section-title">${summaryHtml}</summary>${bodyHtml}</details>`;
+  }
 
   function allRivals() {
     if (realRivals) return serverRivals; // đối thủ thật (lưu file, theo dõi bằng khoá API)
@@ -205,6 +211,14 @@
   // Mỗi người có 1 màu tự động gán lúc thêm (managers()/addManager ở google.js) — tô luôn cả ô chọn theo màu người đang gán.
   const managerColor = (name) => (((api && api.managers) || []).find((m) => m.name === name) || {}).color || '';
   const hexA = (hex, a) => { const n = parseInt(String(hex).replace('#', ''), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+  // Thẻ đọc (không chỉnh sửa) hiển thị người quản lý — dùng ở các bảng tóm tắt (Dashboard)
+  const managerBadge = (c) => {
+    if (!c.manager) return '';
+    const col = managerColor(c.manager);
+    const style = col ? `background:${hexA(col, 0.16)};border-color:${hexA(col, 0.5)};color:${col};` : '';
+    return `<span class="tag" style="${style}">${esc(c.manager)}</span>`;
+  };
+  const nicheTag = (n) => (n && n !== NO_NICHE ? `<span class="tag">${esc(n)}</span>` : '');
   const managerSelect = (c) => {
     const list = (api && api.managers) || [];
     const col = c.manager ? managerColor(c.manager) : '';
@@ -1810,11 +1824,13 @@
     return out.sort((a, b) => (b.growth == null ? b.x * 100 : b.growth) - (a.growth == null ? a.x * 100 : a.growth)).slice(0, 6);
   }
   function ownBreakoutCard(own) {
-    if (!own.some((c) => c.videoList.some((v) => v.v7 != null))) return `<div class="card dcard"><div class="section-title"><span>🚀 Video của mình đang bứt phá</span></div><div class="dempty">Chưa có số liệu 7 ngày của video. Bấm “Đồng bộ” ở Cài đặt để lấy.</div></div>`;
+    const title = '<span>🚀 Video của mình đang bứt phá</span><span class="r"><i class="chev">▾</i></span>';
+    if (!own.some((c) => c.videoList.some((v) => v.v7 != null))) return dashSection('ownBreakout', 'dcard', title, '<div class="dempty">Chưa có số liệu 7 ngày của video. Bấm “Đồng bộ” ở Cài đặt để lấy.</div>');
     const list = ownBreakouts(own);
     const rows = list.map((o) => `<tr class="click" data-go="#/video/${esc(o.c.id)}/${esc(o.v.id)}"><td class="l vt" title="${esc(o.v.title)}">${esc(o.v.title)}</td><td class="l note">${esc(o.c.name)}</td><td class="big">${fmt(o.v.v7)}</td><td><span class="hb ok"><i></i>${o.x > 100 ? '>×100' : '×' + xTag(o.x)}</span></td><td>${o.growth != null ? dChip(o.growth) : '<span class="note">mới</span>'}</td><td>${o.v.rev28 != null ? money(o.v.rev28) : '—'}</td></tr>`).join('');
-    return `<div class="card dcard"><div class="section-title"><span>🚀 Video của mình đang bứt phá</span><span class="r">7 ngày qua, so mức thường của kênh</span></div>
-      ${list.length ? `<div class="tablewrap"><table><thead><tr><th class="l">Video</th><th class="l">Kênh</th><th>Lượt xem 7 ngày</th><th>So mức thường</th><th>So tuần trước</th><th>Doanh thu 28 ngày</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="dempty">Chưa có video nào đang tăng mạnh (từ +50% so với tuần trước) hoặc video mới vượt mức thường. Khi có, nó sẽ hiện ở đây.</div>'}</div>`;
+    const titleWithSub = '<span>🚀 Video của mình đang bứt phá</span><span class="r">7 ngày qua, so mức thường của kênh <i class="chev">▾</i></span>';
+    return dashSection('ownBreakout', 'dcard', titleWithSub,
+      list.length ? `<div class="tablewrap"><table><thead><tr><th class="l">Video</th><th class="l">Kênh</th><th>Lượt xem 7 ngày</th><th>So mức thường</th><th>So tuần trước</th><th>Doanh thu 28 ngày</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="dempty">Chưa có video nào đang tăng mạnh (từ +50% so với tuần trước) hoặc video mới vượt mức thường. Khi có, nó sẽ hiện ở đây.</div>');
   }
 
   // Đối thủ đang nổ có CÙNG TỪ KHOÁ với các video mạnh của mình
@@ -1823,15 +1839,22 @@
     const kw = new Map();
     own.forEach((c) => c.videoList.slice().sort((a, b) => b.views - a.views).slice(0, 12).forEach((v) => new Set(kwTokens(v.title)).forEach((w) => kw.set(w, (kw.get(w) || 0) + 1))));
     const rivals = activeRivals().filter((r) => state.dashNiche === 'all' || r.niche === state.dashNiche || !own.length);
-    return hits(rivals, 14).map((o) => ({ ...o, shared: [...new Set(kwTokens(o.v.title))].filter((w) => kw.has(w)).sort((a, b) => kw.get(b) - kw.get(a)).slice(0, 4) })).filter((o) => o.shared.length).slice(0, 6);
+    return hits(rivals, 14).map((o) => ({ ...o, shared: [...new Set(kwTokens(o.v.title))].filter((w) => kw.has(w)).sort((a, b) => kw.get(b) - kw.get(a)).slice(0, 4) })).filter((o) => o.shared.length >= 2).slice(0, 6);
   }
   function rivalKeywordCard(own) {
     const list = rivalKeywordHits(own);
-    const head = '<div class="section-title"><span>🎯 Đối thủ đang nổ cùng từ khoá với mình</span><span class="r">14 ngày qua</span></div>';
-    if (list == null) return `<div class="card dcard">${head}<div class="dempty">Chưa theo dõi đối thủ thật nào. Thêm đối thủ ở YouTube Channel Tracker.</div></div>`;
-    const rows = list.map((o) => `<tr class="click" data-go="#/channel/${esc(o.c.id)}"><td class="l vt" title="${esc(o.v.title)}">${esc(o.v.title)}</td><td class="l note">${esc(o.c.name)}</td><td class="l">${o.shared.map((w) => `<span class="tag">${esc(w)}</span>`).join(' ')}</td><td class="big">${fmt(o.v.views)}</td><td><span class="hb ok"><i></i>×${xTag(o.x)}</span></td></tr>`).join('');
+    const title = '<span>🎯 Đối thủ đang nổ cùng từ khoá với mình</span><span class="r">14 ngày qua · từ 2 từ khoá chung trở lên <i class="chev">▾</i></span>';
+    if (list == null) return dashSection('rivalKeyword', 'dcard', title, '<div class="dempty">Chưa theo dõi đối thủ thật nào. Thêm đối thủ ở YouTube Channel Tracker.</div>');
+    const rows = list.map((o) => `<tr>
+      <td>${o.v.thumb ? `<a href="${esc(o.v.url)}" target="_blank" rel="noopener"><img class="trthumb" src="${esc(o.v.thumb)}" alt="" loading="lazy"></a>` : ''}</td>
+      <td class="l vt"><a href="${esc(o.v.url)}" target="_blank" rel="noopener" title="${esc(o.v.title)}">${esc(o.v.title)}</a></td>
+      <td class="l note"><a href="https://www.youtube.com/channel/${esc(o.c.id)}" target="_blank" rel="noopener">${esc(o.c.name)}</a></td>
+      <td class="l">${o.shared.map((w) => `<span class="tag">${esc(w)}</span>`).join(' ')}</td>
+      <td class="l"><span class="tag">${esc(o.c.niche)}</span></td>
+      <td class="big">${fmt(o.v.views)}</td>
+      <td><span class="hb ok"><i></i>×${xTag(o.x)}</span></td></tr>`).join('');
     window.__dashHitTitles = list.map((o) => o.v.title);
-    return `<div class="card dcard">${head}${list.length ? `<div class="tablewrap"><table><thead><tr><th class="l">Video đối thủ</th><th class="l">Kênh</th><th class="l">Từ khoá chung</th><th>Lượt xem</th><th>So mức thường</th></tr></thead><tbody>${rows}</tbody></table></div><div style="padding:8px 14px"><button class="btn sm" data-act="copyDashHits">Copy tiêu đề</button></div>` : '<div class="dempty">Chưa có video đối thủ nào đang nổ trùng từ khoá với video mạnh của mình.</div>'}</div>`;
+    return dashSection('rivalKeyword', 'dcard', title, list.length ? `<div class="tablewrap"><table><thead><tr><th></th><th class="l">Video đối thủ</th><th class="l">Kênh</th><th class="l">Từ khoá chung</th><th class="l">Ngách</th><th>Lượt xem</th><th>So mức thường</th></tr></thead><tbody>${rows}</tbody></table></div><div style="padding:8px 14px"><button class="btn sm" data-act="copyDashHits">Copy tiêu đề</button></div>` : '<div class="dempty">Chưa có video đối thủ nào đang nổ trùng từ 2 khoá chung trở lên với video mạnh của mình.</div>');
   }
 
   function kpiStrip(own) {
@@ -1857,15 +1880,17 @@
     const key = { rev: (m) => (m.rev == null ? -1 : m.rev), rpm: (m) => (m.rpm == null ? -1 : m.rpm), views: (m) => m.v, subs: (m) => m.s, growth: (m) => (m.vp > 0 ? m.v / m.vp : 0) }[state.dashSort] || ((m) => m.v);
     const sorted = ms.slice().sort((a, b) => key(b) - key(a));
     const cut = sorted.length > 10 && !state.dashRankAll;
-    const row = (m) => `<tr class="click" data-go="#/channel/${esc(m.c.id)}"><td class="l"><div class="chan">${avatar(m.c)}<div><div class="n">${esc(m.c.name)}</div><div class="s">${esc(m.c.niche === NO_NICHE ? '' : m.c.niche)}</div></div></div></td>
+    const row = (m) => `<tr class="click" data-go="#/channel/${esc(m.c.id)}"><td class="l"><div class="chan">${avatar(m.c)}<div class="n">${esc(m.c.name)}</div></div></td>
+      <td class="l">${nicheTag(m.c.niche)}</td><td class="l">${managerBadge(m.c)}</td>
       <td>${m.rev != null ? `<span class="big">${money(m.rev)}</span>${dChip(pctChange(m.rev, m.revPrev))}` : '<span class="note">—</span>'}</td><td>${m.rpm != null ? money(m.rpm) : '—'}</td>
       <td><span class="big">${fmt(m.v)}</span>${dChip(pctChange(m.v, m.vp))}</td><td>${signed(m.s)}</td><td>${spark(m.c.views.slice(-(days + 1)), '#22c1a5')}</td><td class="l">${hBadge(m.h)}</td></tr>`;
-    const body = cut ? sorted.slice(0, 5).map(row).join('') + `<tr><td colspan="7" class="l note" style="text-align:center">… ${sorted.length - 10} kênh ở giữa …</td></tr>` + sorted.slice(-5).map(row).join('') : sorted.map(row).join('');
+    const body = cut ? sorted.slice(0, 5).map(row).join('') + `<tr><td colspan="9" class="l note" style="text-align:center">… ${sorted.length - 10} kênh ở giữa …</td></tr>` + sorted.slice(-5).map(row).join('') : sorted.map(row).join('');
     const opts = [['rev', 'Doanh thu'], ['rpm', 'RPM'], ['views', 'Lượt xem'], ['subs', 'Sub'], ['growth', 'Tăng trưởng lượt xem']];
     const rangeChips = [7, 28, 90].map((n) => `<button class="chip ${days === n ? 'on' : ''}" data-act="dashRange" data-v="${n}">${n} ngày</button>`).join('');
-    return `<div class="card dcard"><div class="section-title"><span>🏆 Xếp hạng kênh${cut ? ' <span class="note">(5 tốt nhất và 5 kém nhất)</span>' : ''}</span><span class="r"><div class="chips">${rangeChips}</div><select data-act="dashSort">${opts.map(([k, l]) => `<option value="${k}" ${state.dashSort === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${sorted.length > 10 ? `<button class="btn sm" data-act="dashRankAll">${state.dashRankAll ? 'Thu gọn' : 'Xem tất cả'}</button>` : ''}</span></div>
-      <div class="tablewrap"><table><thead><tr><th class="l">Kênh</th><th>Doanh thu ${days} ngày</th><th>RPM ${days} ngày</th><th>Lượt xem ${days} ngày</th><th>Sub ${days} ngày</th><th>Xu hướng ${days} ngày</th><th class="l">Tình trạng</th></tr></thead><tbody>${body || '<tr><td colspan="7" class="l note">Chưa có kênh nào.</td></tr>'}</tbody></table></div>
-      ${days === 90 ? '<p class="note" style="padding:8px 16px 12px">% so kỳ trước chỉ có ở mốc 7 và 28 ngày — mốc 90 ngày cần 180 ngày dữ liệu để so nên chưa tính được, chỉ hiện số tuyệt đối.</p>' : ''}</div>`;
+    const title = `<span>🏆 Xếp hạng kênh${cut ? ' <span class="note">(5 tốt nhất và 5 kém nhất)</span>' : ''}</span><span class="r"><span onclick="event.preventDefault()"><div class="chips">${rangeChips}</div><select data-act="dashSort">${opts.map(([k, l]) => `<option value="${k}" ${state.dashSort === k ? 'selected' : ''}>${l}</option>`).join('')}</select>${sorted.length > 10 ? `<button class="btn sm" data-act="dashRankAll">${state.dashRankAll ? 'Thu gọn' : 'Xem tất cả'}</button>` : ''}</span> <i class="chev">▾</i></span>`;
+    return dashSection('ranking', 'dcard', title,
+      `<div class="tablewrap"><table><thead><tr><th class="l">Kênh</th><th class="l">Chủ đề</th><th class="l">Người quản lý</th><th>Doanh thu ${days} ngày</th><th>RPM ${days} ngày</th><th>Lượt xem ${days} ngày</th><th>Sub ${days} ngày</th><th>Xu hướng ${days} ngày</th><th class="l">Tình trạng</th></tr></thead><tbody>${body || '<tr><td colspan="9" class="l note">Chưa có kênh nào.</td></tr>'}</tbody></table></div>
+      ${days === 90 ? '<p class="note" style="padding:8px 16px 12px">% so kỳ trước chỉ có ở mốc 7 và 28 ngày — mốc 90 ngày cần 180 ngày dữ liệu để so nên chưa tính được, chỉ hiện số tuyệt đối.</p>' : ''}`);
   }
 
   function todayCard(own) {
@@ -1877,7 +1902,8 @@
     // video đã hẹn giờ đăng trong 48 giờ tới
     const sched2 = own.flatMap((c) => c.videoList.filter((v) => v.privacy === 'private' && v.publishAt && new Date(v.publishAt) > now && new Date(v.publishAt) - now < 48 * 3600e3).map((v) => ({ c, v })));
     const srows = sched2.slice(0, 4).map((o) => `<div class="n-row" style="cursor:default"><span class="n-dot" style="background:var(--accent)"></span><span class="n-main"><b>${esc(o.c.name)}: video đã hẹn giờ</b><small>${esc(o.v.title)}</small></span><span class="n-time">${fmtVN(o.v.publishAt)}</span></div>`).join('');
-    return `<div class="card dcard"><div class="section-title"><span>📅 Lịch hôm nay</span><span class="r">${tasks.length - left.length}/${tasks.length} việc đã xong · <a href="#/schedule" style="text-decoration:underline">Mở Trạm đăng bài</a></span></div><div class="ntf">${rows || (tasks.length ? '<div class="dempty">Xong hết việc hôm nay 🎉</div>' : '<div class="dempty">Chưa đặt lịch đăng cho kênh nào.</div>')}${srows}</div></div>`;
+    return dashSection('today', 'dcard', `<span>📅 Lịch hôm nay</span><span class="r">${tasks.length - left.length}/${tasks.length} việc đã xong · <a href="#/schedule" style="text-decoration:underline" onclick="event.preventDefault();location.hash='#/schedule'">Mở Trạm đăng bài</a> <i class="chev">▾</i></span>`,
+      `<div class="ntf">${rows || (tasks.length ? '<div class="dempty">Xong hết việc hôm nay 🎉</div>' : '<div class="dempty">Chưa đặt lịch đăng cho kênh nào.</div>')}${srows}</div>`);
   }
 
   // Bảng "hôm nay" cho các kênh của mình — subs/views hôm nay, video mới, cờ cần chú ý
@@ -1885,46 +1911,38 @@
     if (!own.length) return '';
     const rows = own.map((c) => {
       const h = health(c);
-      const newVid = c.videoList.find((v) => ageDays(v) < 1);
       return `<tr class="click" data-go="#/channel/${esc(c.id)}">
-        <td class="l"><div class="chan">${avatar(c)}<div><div class="n">${esc(c.name)}</div><div class="s">${c.niche === NO_NICHE ? '' : esc(c.niche)}</div></div></div></td>
+        <td class="l"><div class="chan">${avatar(c)}<div class="n">${esc(c.name)}</div></div></td>
+        <td class="l">${nicheTag(c.niche)}</td>
+        <td class="l">${managerBadge(c)}</td>
         <td>${deltaCell(gain(c.subs, 1))}</td>
         <td class="big">${fmt(gain(c.views, 1))}</td>
-        <td class="l">${newVid ? `<span class="hb ok" title="${esc(newVid.title)}"><i></i>✅ Có video mới</span>` : '<span class="note">—</span>'}</td>
         <td class="l">${c.noPost ? '<span class="hb plain"><i></i>⏸ Đã ngừng đăng</span>' : hBadge(h)}</td>
       </tr>`;
     }).join('');
-    return `<div class="card dcard"><div class="section-title"><span>📺 Kênh của anh — hôm nay</span></div>
-      <div class="tablewrap"><table><thead><tr><th class="l">Kênh</th><th>Subs hôm nay</th><th>Views hôm nay</th><th class="l">Video mới</th><th class="l">Trạng thái</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    return dashSection('ownToday', 'dcard', '<span>📺 Kênh của anh — hôm nay</span><span class="r"><i class="chev">▾</i></span>',
+      `<div class="tablewrap"><table><thead><tr><th class="l">Kênh</th><th class="l">Chủ đề</th><th class="l">Người quản lý</th><th>Subs hôm nay</th><th>Views hôm nay</th><th class="l">Trạng thái</th></tr></thead><tbody>${rows}</tbody></table></div>`);
   }
 
   // Báo cáo theo từng ngách: mỗi ngách 1 vùng riêng, không gộp chung nên không còn bỏ sót đối thủ ở ngách khác
   function nicheZoneGroups() {
     const rivals = allRivals();
-    const niches = [...new Set([...D.OWN.map((c) => c.niche), ...rivals.map((c) => c.niche)])].filter((n) => n && n !== NO_NICHE);
+    const niches = [...new Set([...D.OWN.map((c) => c.niche), ...rivals.map((c) => c.niche)])].filter((n) => n && n !== NO_NICHE && !isNichePaused(n));
     const filtered = state.dashNiche === 'all' ? niches : niches.filter((n) => n === state.dashNiche);
-    return filtered.map((n) => ({ niche: n, own: D.OWN.filter((c) => c.niche === n), rivals: rivals.filter((c) => c.niche === n), paused: isNichePaused(n) }));
+    return filtered.map((n) => ({ niche: n, own: D.OWN.filter((c) => c.niche === n), rivals: rivals.filter((c) => c.niche === n) }));
   }
   function nicheZoneCard(g) {
-    const tagHtml = (g.own.length ? '<span class="tag mine">Ngách của anh</span>' : '<span class="tag">Đang dò</span>') + (g.paused ? ' <span class="tag" style="opacity:.7">⏸ Tạm dừng</span>' : '');
+    const tagHtml = (g.own.length ? '<span class="tag mine">Ngách của anh</span>' : '<span class="tag">Đang dò</span>');
     const ownNote = g.own.length ? g.own.map((c) => esc(c.name) + (c.noPost ? ' (⏸)' : '')).join(', ') : 'chưa có kênh sở hữu';
-    if (g.paused) {
-      return `<div class="card dcard nichezone"><div class="section-title"><span>${esc(g.niche)} ${tagHtml}</span><span class="r">${ownNote} · ${g.rivals.length} đối thủ</span></div>
-        <div class="dempty">Ngách này đang tạm dừng theo dõi đối thủ — bật lại ở tab "Kênh đối thủ" (mục Theo ngách) khi cần.</div></div>`;
-    }
+    const id = 'niche:' + g.niche;
     if (g.own.length && !g.rivals.length) {
-      return `<div class="card dcard nichezone"><div class="section-title"><span>${esc(g.niche)} ${tagHtml}</span><span class="r">${ownNote} · 0 đối thủ</span></div>
-        <div class="dempty">Ngách này chưa theo dõi đối thủ nào — thêm đối thủ để so sánh tăng trưởng.<br><a class="btn sm primary" href="#/tracker" style="margin-top:8px;display:inline-block">+ Thêm đối thủ</a></div></div>`;
+      return dashSection(id, 'dcard nichezone', `<span>${esc(g.niche)} ${tagHtml}</span><span class="r">${ownNote} · 0 đối thủ <i class="chev">▾</i></span>`,
+        `<div class="dempty">Ngách này chưa theo dõi đối thủ nào — thêm đối thủ để so sánh tăng trưởng.<br><a class="btn sm primary" href="#/tracker" style="margin-top:8px;display:inline-block">+ Thêm đối thủ</a></div>`);
     }
-    const top = hits(g.rivals, 14).slice(0, 3);
     const v7Sum = g.rivals.reduce((t, c) => t + gain(c.views, 7), 0);
     const vpSum = g.rivals.reduce((t, c) => t + (c.views[N - 8] - c.views[N - 15]), 0);
-    const rows = top.length ? top.map((o) => `<div class="n-row click" style="cursor:pointer" data-go="#/channel/${esc(o.c.id)}"><span class="hb ok"><i></i>×${xTag(o.x)}</span><span class="n-main" title="${esc(o.v.title)}"><b>${esc(o.v.title)}</b></span><span class="n-time">${esc(o.c.name)} · ${fmt(o.v.views)}</span></div>`).join('')
-      : '<div class="dempty">Chưa có video nào vượt ngưỡng ×2 trong 14 ngày qua.</div>';
-    return `<div class="card dcard nichezone"><div class="section-title"><span>${esc(g.niche)} ${tagHtml}</span><span class="r">${ownNote} · ${g.rivals.length} đối thủ</span></div>
-      <div class="sec-t">Top video nổi bật · 14 ngày qua</div>
-      <div class="ntf">${rows}</div>
-      <div class="section-title" style="border-top:1px solid var(--line)"><span class="note">Tổng lượt xem 7 ngày (${g.rivals.length} kênh)</span><span class="r"><b>${fmt(v7Sum)}</b> ${dChip(pctChange(v7Sum, vpSum))}</span></div></div>`;
+    return dashSection(id, 'dcard nichezone', `<span>${esc(g.niche)} ${tagHtml}</span><span class="r">${ownNote} · ${g.rivals.length} đối thủ <i class="chev">▾</i></span>`,
+      `<div class="section-title"><span class="note">Tổng lượt xem 7 ngày (${g.rivals.length} kênh)</span><span class="r"><b>${fmt(v7Sum)}</b> ${dChip(pctChange(v7Sum, vpSum))}</span></div>`);
   }
   function nicheZonesCard() {
     const groups = nicheZoneGroups();
@@ -1949,15 +1967,14 @@
     const niches = [...new Set(D.OWN.map((c) => c.niche))].filter((n) => n && n !== NO_NICHE);
     const filter = realOwn && niches.length > 1 ? `<select data-act="dashNiche"><option value="all">Mọi ngách</option>${niches.map((n) => `<option value="${esc(n)}" ${state.dashNiche === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>` : '';
     const own = realOwn ? dashOwn() : [];
-    const brief = realOwn && own.length
-      ? `<div class="dsec">🔔 Cần xử lý ngay</div>` : '<div class="dsec">🔔 Thông báo</div>';
+    const briefTitle = realOwn && own.length ? '🔔 Cần xử lý ngay' : '🔔 Thông báo';
+    const brief = dashSection('notif', 'ntf', `<span>${briefTitle}</span><span class="r"><i class="chev">▾</i></span>`, secHtml || '<div class="dempty">Không có thông báo mới 🎉</div>');
     const top = realOwn && own.length ? ownTodayCard(own) : '';
     const after = realOwn && own.length
       ? ownBreakoutCard(own) + nicheZonesCard() + rivalKeywordCard(own) + rankingCard(own) + todayCard(own)
       : '<div class="card dcard"><div class="dempty">Kết nối kênh thật để thấy bản tin: doanh thu, video bứt phá, báo cáo theo ngách, xếp hạng kênh.</div></div>';
     return head('📊', 'Bản tin buổi sáng', `${new Date().toLocaleDateString('vi-VN')} · ${un.length ? `${un.length} thông báo mới` : 'không có thông báo mới'}`, `${filter}<span class="note">Cập nhật gần nhất ${up && up.last ? fmtVN(up.last.at) : 'chưa có'} · kế tiếp ${up ? fmtVN(up.nextRunAt) : '08:30'}${q ? ` · hạn mức ${fmt(q.used)}/${fmt(q.limit)}` : ''}</span>`) + apiBanner() + top + brief +
-      `<div class="card ntf" style="margin-bottom:14px">${secHtml || '<div class="dempty">Không có thông báo mới 🎉</div>'}</div>
-      ${after}
+      `${after}
       <details class="card dhist" ${state.histOpen ? 'open' : ''}><summary>Lịch sử thông báo (${notifs.length})<select data-act="histFilter" onclick="event.stopPropagation()"><option value="all" ${hf === 'all' ? 'selected' : ''}>Tất cả</option>${SECTIONS.map(([k, l]) => `<option value="${k}" ${hf === k ? 'selected' : ''}>${l}</option>`).join('')}</select></summary>
         <div class="ntf">${hist.length ? hist.map((n) => notifBtn(n, !!n.readAt)).join('') : '<div class="dempty">Chưa có thông báo nào.</div>'}</div></details>`;
   }
@@ -2616,6 +2633,11 @@
     if (e.target.classList.contains('digest')) store.set('qlk_digest', e.target.open);
     if (e.target.classList.contains('profcard')) state.profOpen = e.target.open;
     if (e.target.classList.contains('dhist')) state.histOpen = e.target.open;
+    if (e.target.classList.contains('dashsec')) {
+      const id = e.target.dataset.dashid;
+      if (e.target.open) delete dashClosed[id]; else dashClosed[id] = true;
+      store.set('qlk_dashClosed', dashClosed);
+    }
   }, true);
   document.addEventListener('mousemove', (e) => {
     const svg = e.target.closest && e.target.closest('svg[data-chart]');

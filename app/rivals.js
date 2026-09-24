@@ -81,7 +81,7 @@ module.exports = function makeRivals(core, scan) {
           // trước đây chỉ fetch video MỚI nên lượt xem của video cũ bị đứng yên mãi từ lúc thấy lần đầu, sai lệch với thực tế.
           const det = await videoDetails(ids);
           const cur = new Map((r.recentVideos || []).map((v) => [v.id, v]));
-          det.forEach((v) => cur.set(v.id, { id: v.id, title: v.title, views: v.views, publishedAt: v.publishedAt, seconds: v.seconds }));
+          det.forEach((v) => cur.set(v.id, { id: v.id, title: v.title, views: v.views, publishedAt: v.publishedAt, seconds: v.seconds, thumb: v.thumb || '' }));
           r.recentVideos = [...cur.values()].sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1)).slice(0, 20);
           r.knownIds = [...new Set([...ids, ...(r.knownIds || [])])].slice(0, 40);
           if (!silent && !first) {
@@ -162,7 +162,7 @@ module.exports = function makeRivals(core, scan) {
       return {
         id: r.id, name: r.title, handle: r.handle, niche: r.niche || 'Chưa đặt ngách', market: r.market, addedAt: r.addedAt, source: r.source,
         videos: (r.stats || {}).videos || 0, subs: series('subs'), views: series('views'), trackedDays: arr.length, lastCheck: r.lastCheck || null,
-        videoList: (r.recentVideos || []).map((v) => ({ id: v.id, title: v.title, views: v.views, likes: 0, comments: 0, date: v.publishedAt, url: urlOf(v.id), seconds: v.seconds })),
+        videoList: (r.recentVideos || []).map((v) => ({ id: v.id, title: v.title, views: v.views, likes: 0, comments: 0, date: v.publishedAt, url: urlOf(v.id), seconds: v.seconds, thumb: v.thumb || '' })),
       };
     });
   }

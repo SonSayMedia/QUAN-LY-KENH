@@ -3,21 +3,37 @@
   CỦA ANH (dùng chung tên miền sonsaymedia.cloud, còn lại tách riêng)
 =====================================================================
 
-MÔ HÌNH ĐANG DÙNG (đọc trước để khỏi nhầm)
-  - App "Quản lý Kênh" chỉ chạy trên MÁY CỦA ANH (http://localhost:4400),
-    không ai khác mở được trực tiếp giao diện này.
-  - App đã hỗ trợ SẴN nhiều "bộ OAuth" (nhiều Client ID/Secret) chạy song
-    song trong cùng một app — mỗi kênh nhớ nó thuộc bộ nào.
-  - Vì vậy CÁCH LÀM ĐÚNG: mỗi người tự tạo một bộ OAuth riêng (project
-    Google Cloud + Client ID/Secret + khoá API riêng của họ), rồi ĐƯA lại
-    Client ID + Client Secret cho anh. Anh là người thêm bộ đó vào app và
-    bấm nút kết nối kênh (mở đúng hồ sơ GPM đang đăng nhập Gmail của kênh
-    đó). Người kia KHÔNG cần tự cài app, không cần máy riêng chạy app.
-  - Cái DUY NHẤT họ không tự làm được là tên miền cho Branding — dùng
-    chung tên miền sonsaymedia.cloud của anh (đã có sẵn 2 trang: trang chủ
-    + chính sách quyền riêng tư). Mọi thứ khác (project, khoá API, OAuth
-    Client, hạn mức 10.000 đơn vị/ngày) của ai người đó dùng, không đụng
-    của anh và không đụng của nhau.
+MÔ HÌNH ĐANG DÙNG (đọc trước để khỏi nhầm — ĐÃ CẬP NHẬT: mỗi người tự
+chạy app trên máy mình, tải về từ GitHub)
+  - App "Quản lý Kênh" nằm trên GitHub (repo riêng của anh Hoàn, private/
+    theo team). Mỗi người TỰ tải (git clone) về máy MÌNH và tự chạy
+    (CHAY QUAN LY KENH.bat) — app chạy tại http://localhost:4400 CỦA
+    CHÍNH MÁY NGƯỜI ĐÓ, không phải máy anh Hoàn. Ai cũng có 1 bản độc lập.
+  - Dữ liệu riêng (API key, Client Secret, refresh token của kênh) nằm
+    trong thư mục app/data trên máy mỗi người — thư mục này KHÔNG nằm
+    trong Git, không ai gửi/đồng bộ cho ai, kể cả anh Hoàn.
+  - Vì vậy CÁCH LÀM ĐÚNG bây giờ: mỗi người tự tạo project Google Cloud +
+    khoá YouTube Data API + bộ OAuth (Client ID/Secret) CỦA RIÊNG MÌNH,
+    rồi TỰ dán vào Cài đặt trong app trên MÁY MÌNH, TỰ bấm kết nối kênh —
+    không cần gửi Client ID/Secret cho anh Hoàn hay bất kỳ ai nữa (an
+    toàn hơn nhiều so với cách cũ).
+  - Cái DUY NHẤT không tự làm được là tên miền cho Branding (để Publish
+    app ngay, khỏi bị Google bắt xác minh/hết hạn sau 7 ngày) — dùng
+    chung tên miền sonsaymedia.cloud của anh Hoàn (đã có sẵn 2 trang:
+    trang chủ + chính sách quyền riêng tư). Mọi thứ khác (project, khoá
+    API, OAuth Client, hạn mức 10.000 đơn vị/ngày) của ai người đó dùng,
+    không đụng của anh Hoàn và không đụng của nhau.
+
+=====================================================================
+PHẦN -1 — CÀI APP TRƯỚC KHI LÀM OAUTH (bỏ qua nếu đã cài xong)
+=====================================================================
+  1) Cài Node.js (bản LTS) từ https://nodejs.org nếu máy chưa có.
+  2) Cài Git for Windows nếu máy chưa có (winget install --id Git.Git -e).
+  3) git clone <link repo GitHub anh Hoàn gửi> về máy.
+  4) Chạy file "CHAY QUAN LY KENH.bat" trong thư mục vừa tải — app tự mở
+     tại http://localhost:4400. Lúc này Cài đặt sẽ TRỐNG (chưa có khoá
+     API, chưa có bộ OAuth nào) — đúng như vậy, làm tiếp Phần 0 và Phần 1
+     bên dưới để tự cấu hình cho máy của mình.
 
 =====================================================================
 PHẦN 0 — ANH HOÀN LÀM TRƯỚC (một lần cho MỖI người mới)
@@ -139,8 +155,9 @@ BƯỚC 5. TẠO OAUTH CLIENT — LẤY CLIENT ID VÀ CLIENT SECRET
   3) Name: tuỳ ý.
   4) "Authorized JavaScript origins": để trống.
   5) "Authorized redirect URIs" -> "+ Add URI" -> nhập ĐÚNG TỪNG KÝ TỰ
-     (đây LUÔN LUÔN là địa chỉ máy của anh Hoàn, vì app chỉ chạy ở đó,
-     không phải máy của bạn):
+     (đây là địa chỉ app chạy trên CHÍNH MÁY BẠN — app luôn chạy ở cổng
+     4400 nên ai cũng dùng đúng dòng này, kể cả khi mỗi người tự chạy
+     trên máy riêng của mình):
 
         http://localhost:4400/oauth/callback
 
@@ -150,38 +167,37 @@ BƯỚC 5. TẠO OAUTH CLIENT — LẤY CLIENT ID VÀ CLIENT SECRET
      đóng hộp thoại.
 
 ---------------------------------------------------------------------
-BƯỚC 6. GỬI LẠI CHO ANH HOÀN
+BƯỚC 6. TỰ NHẬP LUÔN VÀO APP TRÊN MÁY MÌNH (không cần gửi cho ai)
 ---------------------------------------------------------------------
-  Gửi qua kênh riêng tư (không dán vào nhóm chat công khai, không chụp
-  ảnh màn hình rồi gửi lung tung):
-    - Client ID
-    - Client Secret
+  Giữ lại 2 thứ vừa tạo để dùng ở Phần 2 ngay bên dưới:
+    - Client ID + Client Secret (Bước 5)
     - Khoá YouTube Data API (Bước 3)
-    - Tên kênh YouTube + Gmail đang quản lý kênh đó + kênh đang vận hành
-      ở đâu (máy nào / VPS nào / hồ sơ GPM nào)
+  Không cần gửi những thứ này cho anh Hoàn hay ai khác — vì app đang
+  chạy ngay trên máy bạn, bạn tự điền vào Cài đặt của chính mình.
 
 
 =====================================================================
-PHẦN 2 — ANH HOÀN HOÀN TẤT TRONG APP (sau khi nhận đủ thông tin Bước 6)
+PHẦN 2 — TỰ HOÀN TẤT TRONG APP CỦA CHÍNH BẠN
 =====================================================================
-  1) Mở app -> "Cài đặt".
-  2) Khung "YouTube Data API Key": nếu đây là khoá API đầu tiên của hệ
-     thống thì dán vào ô "Khóa API" -> "Lưu & kiểm tra" (app hiện chỉ
-     lưu được MỘT khoá YouTube Data API dùng chung cho việc tra cứu đối
-     thủ; khoá riêng của từng người chủ yếu phục vụ hạn mức kênh của họ
-     khi đồng bộ, không cần thay khoá chung mỗi lần thêm người).
-  3) Khung "Google OAuth — các bộ Client ID / Secret":
-       - Ô "Tên gọi (tuỳ chọn)": đặt tên để nhận ra, ví dụ tên người đó.
-       - Ô "Client ID": dán Client ID họ gửi.
-       - Ô "Client Secret": dán Client Secret họ gửi.
+  1) Mở app trên máy bạn (http://localhost:4400) -> "Cài đặt".
+  2) Khung "YouTube Data API Key" -> "+ Thêm khoá" -> dán khoá API vừa
+     tạo ở Bước 3 (dạng bắt đầu bằng "AIza...") -> "Lưu & kiểm tra".
+     (App cho thêm NHIỀU khoá, tự xoay vòng khi khoá trước gần hết hạn
+     mức 10.000 đơn vị/ngày — bạn chỉ cần khoá của chính mình.)
+  3) Khung "Google OAuth — các bộ Client ID / Secret" -> "+ Thêm bộ
+     OAuth":
+       - Ô "Tên gọi (tuỳ chọn)": đặt tên tuỳ ý, ví dụ tên bạn.
+       - Ô "Client ID": dán Client ID vừa tạo ở Bước 5 (kết thúc bằng
+         .apps.googleusercontent.com).
+       - Ô "Client Secret": dán Client Secret vừa tạo ở Bước 5 (bắt đầu
+         bằng GOCSPX-).
        - Bấm "+ Thêm bộ OAuth".
      => Bộ mới hiện trong danh sách phía trên, ghi "0 kênh đang dùng".
   4) Bấm nút "✓ Đã Publish" / "Đánh dấu đã Publish" ngay cho bộ vừa thêm
-     (vì họ đã Publish ở Bước 4D) — để Dashboard không đếm ngược 7 ngày
+     (vì đã Publish ở Bước 4D) — để Dashboard không đếm ngược 7 ngày
      nhầm cho kênh này.
   5) Kéo xuống khung "Kênh đã kết nối":
-       - Ô "Kết nối kênh mới bằng bộ": chọn ĐÚNG bộ vừa thêm (tên đã đặt
-         ở bước 3).
+       - Ô "Kết nối kênh mới bằng bộ": chọn ĐÚNG bộ vừa thêm ở bước 3.
        - Ô "Gmail dự kiến (tuỳ chọn)": gõ đúng Gmail của kênh đó, Google
          sẽ chọn sẵn tài khoản này ở màn chọn tài khoản.
        - Bấm "+ Kết nối kênh".
@@ -203,7 +219,9 @@ PHẦN 2 — ANH HOÀN HOÀN TẤT TRONG APP (sau khi nhận đủ thông tin B�
      ngoài).
   9) Vì đã Publish ngay từ đầu, kênh này sẽ KHÔNG cần kết nối lại sau
      7 ngày. Số liệu tự đồng bộ mỗi giờ và 08:30 sáng mỗi ngày; muốn lấy
-     ngay thì bấm "Đồng bộ" ở dòng kênh đó.
+     ngay thì bấm "Đồng bộ" ở dòng kênh đó. Mỗi khi anh Hoàn đẩy bản cập
+     nhật mới lên GitHub, chạy "CAP NHAT.bat" để lấy code mới — dữ liệu
+     API key/OAuth/kênh của bạn không bị ảnh hưởng.
 
 
 =====================================================================
@@ -228,7 +246,7 @@ PHẦN 3 — LỖI THƯỜNG GẶP
          chậm), hoặc Ctrl+F5 tải lại trang Branding.
 
   * Kết nối nhầm kênh / nhầm bộ OAuth
-      -> Trong app bấm "Xoá theo dõi" ở kênh sai, làm lại Bước 2 Phần 2
+      -> Trong app bấm "Xoá theo dõi" ở kênh sai, làm lại Bước 5 Phần 2
          và chọn đúng bộ + đúng Gmail ở màn chọn tài khoản.
 
   * App báo "Google không trả mã làm mới"
@@ -239,14 +257,17 @@ PHẦN 3 — LỖI THƯỜNG GẶP
 =====================================================================
 PHẦN 4 — BẢO MẬT GHI NHỚ
 =====================================================================
-  - Client Secret là bí mật: gửi qua kênh riêng tư, không gửi qua nhóm
-    chat đông người, không chụp màn hình rồi lưu chung với ảnh khác.
-  - Anh Hoàn không gửi thư mục app/data cho ai — nơi đó có Client Secret
-    và refresh token của TẤT CẢ kênh trong hệ thống.
-  - Quyền cấp Owner trong Search Console (Phần 0) chỉ nên cấp cho người
-    thật sự trong hệ thống kênh của anh, và có thể thu hồi bất cứ lúc
-    nào mà không ảnh hưởng gì tới tên miền hay các bộ OAuth đã Publish
-    trước đó.
+  - Client Secret và khoá API là bí mật CỦA RIÊNG BẠN: không gửi cho ai
+    kể cả anh Hoàn, không đăng lên nhóm chat, không chụp màn hình rồi
+    lưu chung với ảnh khác — vì giờ mỗi người tự nhập thẳng vào app của
+    mình, không cần chuyển qua ai nữa.
+  - Thư mục app/data trên máy bạn không nằm trong Git/GitHub và không ai
+    gửi thư mục này cho ai — nơi đó có Client Secret và refresh token
+    của các kênh do CHÍNH BẠN kết nối.
+  - Quyền cấp Owner trong Search Console (Phần 0, do anh Hoàn cấp) chỉ
+    nên cấp cho người thật sự trong hệ thống kênh, và anh Hoàn có thể
+    thu hồi bất cứ lúc nào mà không ảnh hưởng gì tới tên miền hay các bộ
+    OAuth đã Publish trước đó.
   - Mỗi bộ OAuth chỉ có quyền ĐỌC (readonly) — không đăng/sửa/xoá được
     gì trên kênh, kể cả khi Client Secret của bộ đó bị lộ.
 
@@ -254,15 +275,19 @@ PHẦN 4 — BẢO MẬT GHI NHỚ
 =====================================================================
 TÓM TẮT NHANH
 =====================================================================
+  Phần -1 (bạn tự làm, 1 lần): cài Node.js + Git -> git clone repo ->
+    chạy CHAY QUAN LY KENH.bat.
   Phần 0 (anh Hoàn, 1 lần/người): Search Console -> Add user -> Gmail
-    của họ -> quyền Owner.
-  Phần 1 (người đó tự làm): Tạo project -> bật 2 API -> tạo khoá API ->
-    Branding dùng domain sonsaymedia.cloud -> Data access 3 quyền ->
-    Publish app -> tạo OAuth Client (redirect
-    http://localhost:4400/oauth/callback) -> gửi Client ID + Secret +
-    khoá API cho anh Hoàn.
-  Phần 2 (anh Hoàn): Cài đặt -> "+ Thêm bộ OAuth" -> đánh dấu đã Publish
-    -> "Kênh đã kết nối" -> chọn bộ -> "+ Kết nối kênh" -> dán link vào
-    đúng hồ sơ GPM/VPS của kênh -> cho phép -> điền Ngách/Thị
+    của bạn -> quyền Owner.
+  Phần 1 (bạn tự làm): Tạo project Google Cloud -> bật 2 API (YouTube
+    Data API v3 + YouTube Analytics API) -> tạo khoá API -> OAuth
+    consent screen: Branding dùng domain sonsaymedia.cloud -> Data
+    access 3 quyền -> Publish app -> tạo OAuth Client, Application
+    type = "Web application", redirect http://localhost:4400/oauth/callback
+    -> giữ lại Client ID + Client Secret + khoá API.
+  Phần 2 (bạn tự làm, trong app của chính mình): Cài đặt -> dán khoá API
+    -> "+ Thêm bộ OAuth" (dán Client ID + Client Secret) -> đánh dấu đã
+    Publish -> "Kênh đã kết nối" -> chọn bộ -> "+ Kết nối kênh" -> dán
+    link vào đúng hồ sơ GPM/VPS của kênh -> cho phép -> điền Ngách/Thị
     trường/Gmail/Nơi vận hành.
 =====================================================================

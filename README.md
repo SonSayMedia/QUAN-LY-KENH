@@ -26,9 +26,9 @@ Lưu ý: `CAP NHAT.bat` chỉ chạy được khi thư mục này được tải
 
 ## Kết nối kênh + cài OAuth cho từng người
 
-Làm theo đúng file **`HUONG DAN CHO NGUOI KHAC KET NOI KENH.txt`** ở thư mục gốc — hướng dẫn chi tiết từng bước: tạo Google Cloud project riêng, cấu hình màn hình đồng ý OAuth (dùng chung tên miền đã xác minh của SonSay Media qua cơ chế "Add owner" trong Search Console — không cần quyền quản trị tên miền/hosting), tạo OAuth Client, rồi gửi Client ID/Secret để được thêm vào hệ thống và bắt đầu kết nối kênh.
+Làm theo đúng file **`HUONG DAN CHO NGUOI KHAC KET NOI KENH.txt`** ở thư mục gốc — hướng dẫn chi tiết từng bước: tạo project Google Cloud riêng, bật API, tạo khoá YouTube Data API v3, cấu hình màn hình đồng ý OAuth (chọn Application type = **Web application**, dùng chung tên miền đã xác minh của SonSay Media qua cơ chế "Add owner" trong Search Console — không cần quyền quản trị tên miền/hosting), tạo OAuth Client (Client ID + Client Secret), rồi **tự dán các giá trị đó vào đúng ô trong Cài đặt của app trên máy mình** để hoàn tất kết nối kênh.
 
-Mỗi người tự có **API key** và **bộ OAuth** riêng trong phần Cài đặt của máy mình — không ai cần biết secret của người khác, và không ai cần đăng nhập Gmail của kênh trực tiếp vào trình duyệt máy tính (app xin quyền qua OAuth, không cần mật khẩu kênh).
+**Không ai gửi Client ID/Client Secret/API key cho anh Hoàn hay cho ai khác** — mỗi người tự nhập thẳng vào app đang chạy trên máy mình, giữ nguyên trong `app/data/` của riêng máy đó. Cũng không ai cần đăng nhập Gmail của kênh trực tiếp vào trình duyệt máy tính (app xin quyền qua OAuth, không cần mật khẩu kênh).
 
 ## Cấu trúc thư mục
 

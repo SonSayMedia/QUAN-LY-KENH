@@ -16,3 +16,11 @@ node_modules/
 # PDF hướng dẫn có chụp màn hình thật lúc tạo OAuth (có thể lộ Client Secret/API key) — không đưa lên GitHub
 Huong dan them kenh va cai OAuth.pdf
 Huong dan them kenh va cai OAuth (ban 2).pdf
+
+# Ghi chú làm việc / tài liệu nội bộ riêng của anh Hoàn — không cần cho team chạy app, không đưa lên GitHub
+PHONG_VAN.md
+LESSONS.md
+VIEC_CAN_LAM_NGAY_MAI.md
+HUONG DAN TEN MIEN VA PUBLISH.txt
+anh-tham-khao/
+website/

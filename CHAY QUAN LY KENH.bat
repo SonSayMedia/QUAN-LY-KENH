@@ -34,7 +34,7 @@ if errorlevel 1 (
 
 rem ---------- Buoc 2: tao shortcut ngoai Desktop neu chua co ----------
 if not exist "%USERPROFILE%\Desktop\Quan ly Kenh.lnk" (
-  powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('%USERPROFILE%\Desktop\Quan ly Kenh.lnk'); $sc.TargetPath = '%~dp0CHAY QUAN LY KENH.bat'; $sc.WorkingDirectory = '%~dp0'; $sc.IconLocation = '%SystemRoot%\System32\shell32.dll,13'; $sc.Save()" >nul 2>nul
+  powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('%USERPROFILE%\Desktop\Quan ly Kenh.lnk'); $sc.TargetPath = '%~dp0CHAY QUAN LY KENH.bat'; $sc.WorkingDirectory = '%~dp0'; $sc.IconLocation = '%~dp0app\public\icons\app-icon.ico'; $sc.Save()" >nul 2>nul
 )
 
 rem ---------- Buoc 3: bat server (neu chua chay) + mo trinh duyet ----------

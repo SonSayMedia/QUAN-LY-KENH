@@ -5,7 +5,7 @@ setlocal
 set "TARGET=%~dp0CHAY QUAN LY KENH.bat"
 set "SHORTCUT=%USERPROFILE%\Desktop\Quan ly Kenh.lnk"
 
-powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('%SHORTCUT%'); $sc.TargetPath = '%TARGET%'; $sc.WorkingDirectory = '%~dp0'; $sc.IconLocation = '%SystemRoot%\System32\shell32.dll,13'; $sc.Save()"
+powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $sc = $ws.CreateShortcut('%SHORTCUT%'); $sc.TargetPath = '%TARGET%'; $sc.WorkingDirectory = '%~dp0'; $sc.IconLocation = '%~dp0app\public\icons\app-icon.ico'; $sc.Save()"
 
 echo.
 echo Da tao xong shortcut "Quan ly Kenh" ngoai man hinh Desktop.

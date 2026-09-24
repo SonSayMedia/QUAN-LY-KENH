@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Hướng dẫn thêm kênh và cài OAuth - Quản lý Kênh</title>
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+* { box-sizing: border-box; }
+body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11.5pt; line-height: 1.55; color: #1b1f27; }
+h1 { font-size: 22pt; margin: 0 0 4px; color: #0f3d8a; }
+.sub { color: #566; margin-bottom: 14px; }
+h2 { font-size: 15pt; color: #fff; background: #0f3d8a; padding: 6px 12px; border-radius: 6px; margin: 22px 0 10px; page-break-after: avoid; }
+h3 { font-size: 12.5pt; margin: 14px 0 4px; color: #0f3d8a; page-break-after: avoid; }
+p { margin: 5px 0; }
+ol, ul { margin: 5px 0 5px 22px; padding: 0; }
+li { margin: 3px 0; }
+code { font-family: Consolas, monospace; background: #eef1f6; padding: 1px 5px; border-radius: 4px; font-size: 10.5pt; word-break: break-all; }
+.box { border: 1px solid #c9d3e6; background: #f3f6fc; border-radius: 8px; padding: 9px 13px; margin: 9px 0; page-break-inside: avoid; }
+.warn { border-color: #e2b04a; background: #fff7e6; }
+.bad { border-color: #e08a8a; background: #fdeeee; }
+.ok { border-color: #8cc79a; background: #eef9f0; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; page-break-inside: avoid; }
+td, th { border: 1px solid #c9d3e6; padding: 5px 9px; text-align: left; vertical-align: top; font-size: 10.5pt; }
+th { background: #e6edf9; }
+.pb { page-break-before: always; }
+.foot { margin-top: 20px; color: #778; font-size: 9.5pt; }
+</style></head><body>
+
+<h1>Hướng dẫn thêm kênh vào Quản lý Kênh</h1>
+<div class="sub">Cài mã OAuth trên Google Cloud, kết nối nhiều Gmail, gia hạn quyền, mở rộng khi có nhiều kênh · Cập nhật 21/09/2026</div>
+
+<div class="box"><b>Đọc trước 1 phút</b>
+<ul>
+<li>App chỉ được quyền <b>đọc</b> số liệu kênh. App không đăng, không xoá, không sửa gì trên kênh.</li>
+<li>Mỗi <b>bộ OAuth</b> = 1 dự án Google Cloud (1 Client ID + 1 Client Secret). Mỗi kênh cấp quyền <b>một lần</b>. Kênh nào cũng dùng một bộ OAuth, không phải mỗi kênh một mã riêng.</li>
+<li>Client Secret là bí mật. Không gửi cho ai, không chụp màn hình lúc nó đang hiện.</li>
+<li>App <b>không tự mở trình duyệt</b> của máy này khi kết nối, để Gmail của kênh không bị đăng nhập nhầm sang máy anh. Anh sẽ copy link và dán vào đúng hồ sơ GPM hoặc trình duyệt VPS.</li>
+</ul></div>
+
+<div class="box warn"><b>Sự thật về "không bị giới hạn"</b>
+<table>
+<tr><th>Giới hạn</th><th>Nguyên nhân</th><th>Cách xử lý</th></tr>
+<tr><td>Quyền hết hạn sau 7 ngày</td><td>Dự án đang ở trạng thái <b>Testing</b></td><td>Chuyển dự án sang <b>In production</b> (Phần C). Làm một lần cho mỗi dự án.</td></tr>
+<tr><td>Tối đa 100 Gmail cho mỗi dự án</td><td>Google giới hạn ứng dụng chưa xác minh, tính suốt vòng đời dự án, kể cả kênh đã xoá</td><td>Tạo thêm bộ OAuth mới (Phần D), hoặc xác minh ứng dụng với Google.</td></tr>
+</table>
+<p>Cách nhiều dự án để vượt 100 có rủi ro với chính sách của Google. Nên dùng thận trọng và ưu tiên xác minh ứng dụng khi số kênh lớn.</p></div>
+
+<h2>PHẦN A. Chuẩn bị</h2>
+<ul>
+<li>App Quản lý Kênh đang chạy (shortcut <b>Quan Ly Kenh</b> ngoài Desktop, địa chỉ <code>http://localhost:4400</code>).</li>
+<li>Gmail chủ dự án Google Cloud.</li>
+<li>Danh sách Gmail của các kênh sắp kết nối, và biết mỗi kênh chạy ở đâu (hồ sơ GPM trên máy này, hay VPS/máy khác).</li>
+</ul>
+
+<h2>PHẦN B. Tạo một bộ OAuth trên Google Cloud</h2>
+
+<h3>Bước 1. Vào đúng dự án</h3>
+<ol>
+<li>Vào <code>https://console.cloud.google.com</code>.</li>
+<li>Ô chọn dự án ở góc trên bên trái, chọn dự án dùng cho bộ này (hoặc bấm <b>New project</b> nếu tạo bộ mới).</li>
+</ol>
+
+<h3>Bước 2. Bật 2 API</h3>
+<ol>
+<li>Menu ☰ → <b>APIs &amp; Services → Library</b>.</li>
+<li>Tìm <b>YouTube Data API v3</b> → <b>Enable</b>.</li>
+<li>Tìm <b>YouTube Analytics API</b> → <b>Enable</b>.</li>
+</ol>
+<p>Nếu thiếu bước này, app sẽ báo dự án chưa bật YouTube Data API.</p>
+
+<h3>Bước 3. Cấu hình màn hình đồng ý (Google Auth Platform)</h3>
+<ol>
+<li>Menu ☰ → <b>APIs &amp; Services → OAuth consent screen</b>.</li>
+<li>Nếu thấy <b>Get started</b>: điền App name (ví dụ <code>Quan ly kenh</code>), User support email, chọn <b>External</b>, điền email liên hệ, đồng ý chính sách → <b>Create</b>.</li>
+<li>Vào mục <b>Branding</b>, kiểm tra 3 ô có nội dung: tên ứng dụng, email hỗ trợ, email liên hệ nhà phát triển (cuối trang). Bấm <b>Save</b>.</li>
+<li><b>Không</b> tải logo. Các ô trang chủ, chính sách riêng tư, điều khoản: để trống (khi chưa xác minh).</li>
+</ol>
+
+<h3>Bước 4. Thêm 2 quyền chỉ đọc</h3>
+<ol>
+<li>Menu trái → <b>Data Access → Add or remove scopes</b>.</li>
+<li>Kéo xuống <b>Manually add scopes</b>, dán 2 dòng:
+<div class="box"><code>https://www.googleapis.com/auth/youtube.readonly</code><br><code>https://www.googleapis.com/auth/yt-analytics.readonly</code></div></li>
+<li><b>Add to table</b> → tick 2 dòng đó → <b>Update</b>.</li>
+<li>Bấm thêm <b>Save</b> ở cuối trang Data Access. Quên bước này thì quyền không được lưu.</li>
+</ol>
+
+<h3>Bước 5. Tạo OAuth Client, lấy Client ID và Secret</h3>
+<ol>
+<li>Menu trái → <b>Clients → + Create client</b>.</li>
+<li>Application type: <b>Web application</b>. Name: tuỳ ý (ví dụ <code>Quan Ly Kenh</code>).</li>
+<li>Mục <b>Authorized redirect URIs</b> → <b>+ Add URI</b>, nhập đúng từng ký tự:
+<div class="box"><code>http://localhost:4400/oauth/callback</code></div>
+Chữ <b>http</b> (không phải https), <b>localhost</b> (không phải 127.0.0.1), cổng 4400, không có dấu <code>/</code> ở cuối.</li>
+<li>Bấm <b>Create</b>. Hộp thoại hiện <b>Client ID</b> (kết thúc <code>.apps.googleusercontent.com</code>) và <b>Client secret</b> (bắt đầu <code>GOCSPX-</code>).</li>
+<li><b>Copy ngay</b> (dán tạm vào Notepad hoặc Download JSON). Google không hiện lại secret sau khi đóng.</li>
+</ol>
+<div class="box warn">Sau khi tạo, Google có thể mất 5 phút đến vài giờ mới có hiệu lực. Lỗi ngay thì chờ rồi thử lại.</div>
+
+<h3>Bước 6. Dán vào app</h3>
+<ol>
+<li>Mở <code>http://localhost:4400</code> → <b>Cài đặt</b>.</li>
+<li>Khung <b>Google OAuth — các bộ Client ID / Secret</b>: nhập Tên gọi, Client ID, Client Secret → <b>+ Thêm bộ OAuth</b>.</li>
+<li>Đèn Google OAuth trên cùng chuyển vàng, "chưa kết nối kênh": bình thường.</li>
+</ol>
+
+<h2 class="pb">PHẦN C. Bỏ giới hạn 7 ngày (chuyển sang In production)</h2>
+<p>Làm <b>một lần cho mỗi dự án</b>, trên Google Cloud. App không làm thay được phần này.</p>
+<ol>
+<li>Chọn đúng dự án → <b>OAuth consent screen → Audience</b>.</li>
+<li>Mục <b>Publishing status</b>: bấm <b>Publish app</b> → xác nhận. Trạng thái đổi từ <i>Testing</i> sang <i>In production</i>.</li>
+<li>Kênh nào kết nối trước đó thì kết nối lại một lần để có quyền không hết hạn.</li>
+</ol>
+<div class="box ok"><b>Sau khi Publish:</b> quyền của kênh không còn hết hạn sau 7 ngày. Không cần thêm Test users. Mỗi Gmail khi kết nối sẽ thấy màn <i>"Google chưa xác minh ứng dụng"</i>: bấm <b>Nâng cao → Đi tới Quan ly kenh (không an toàn)</b>. Bình thường vì ứng dụng do chính anh tạo.</div>
+<div class="box bad"><b>Nếu nút Publish app bị mờ</b> (từng gặp ở dự án của anh): Google đang thấy phần Branding chưa đủ. Kiểm tra lại tên ứng dụng, email hỗ trợ, email liên hệ nhà phát triển, bấm Save, tải lại trang (Ctrl+F5) và thử sau vài giờ. Nếu vẫn mờ, chụp trang Audience và Branding (không có secret) để kiểm tra.</div>
+<p><b>Trong lúc chưa Publish được:</b> dự án ở Testing. Mỗi Gmail kết nối phải nằm trong <b>Audience → Test users → + Add users → Save</b>, và mỗi kênh phải kết nối lại sau khoảng 7 ngày (app báo "cần kết nối lại").</p>
+
+<h2>PHẦN D. Thêm nhiều Gmail / mở rộng khi có nhiều kênh</h2>
+<ul>
+<li>Mỗi dự án chưa xác minh chỉ nhận tối đa <b>100 Gmail</b>. Bộ đếm <b>"đã dùng X/100 suất"</b> trong app tính cả kênh đã xoá, vì Google tính suốt vòng đời dự án.</li>
+<li>Gần đầy thì tạo <b>bộ OAuth mới</b>: lặp lại <b>Phần B</b> trên một dự án Google Cloud <b>mới</b> (redirect URI vẫn y hệt <code>http://localhost:4400/oauth/callback</code>), rồi thêm vào app ở <b>Cài đặt → + Thêm bộ OAuth</b>. Nhớ Publish dự án mới nếu muốn quyền không hết hạn (Phần C).</li>
+<li>Khi kết nối kênh mới, app tự gợi ý bộ còn nhiều suất nhất. Anh có thể chọn bộ khác ở ô <b>"Kết nối kênh mới bằng bộ..."</b>.</li>
+<li>Mỗi kênh nhớ nó thuộc bộ nào, các kênh cũ vẫn chạy bằng bộ cũ. Bộ chỉ xoá được khi không còn kênh dùng.</li>
+<li>Từ khoảng vài chục kênh trở lên, nên tính đến việc <b>xác minh ứng dụng</b> với Google (cần tên miền, trang chính sách riêng tư và video demo) thay vì chỉ tăng số dự án.</li>
+</ul>
+
+<h2 class="pb">PHẦN E. Thêm một kênh vào hệ thống</h2>
+<div class="box warn"><b>Nguyên tắc: không đăng nhập Gmail của kênh vào trình duyệt của máy này</b> nếu Gmail đó phải giữ nguyên nơi đăng nhập. Màn "chọn tài khoản" của Google chỉ liệt kê các Gmail đã đăng nhập sẵn trong trình duyệt được mở. Nếu không thấy Gmail của kênh trong danh sách, nghĩa là anh đang mở nhầm trình duyệt: đóng tab lại, <b>đừng</b> bấm "Sử dụng tài khoản khác".</div>
+
+<h3>Việc làm trước cho mỗi kênh</h3>
+<ol>
+<li>Nếu bộ OAuth còn ở Testing: thêm Gmail của kênh vào <b>Test users</b> của <b>đúng dự án</b> (Audience → Test users, xem Phần C). Đúng dự án là dự án chứa bộ OAuth đang chọn ở app (tên ứng dụng trên màn Google phải trùng tên ở Branding của dự án đó). Quên bước này hoặc thêm nhầm dự án sẽ gặp lỗi <code>403: access_denied</code>.</li>
+<li>Trong app: <b>Cài đặt → Kênh đã kết nối</b>. Chọn bộ OAuth. Có thể điền <b>"Gmail dự kiến"</b> để Google chọn sẵn đúng tài khoản.</li>
+<li>Bấm <b>+ Kết nối kênh</b>. Hộp hướng dẫn hiện ra với 2 nút copy.</li>
+</ol>
+
+<h3>E1. Kênh chạy trong hồ sơ GPM trên máy này</h3>
+<ol>
+<li>Bấm <b>1. Copy link cho hồ sơ GPM (máy này)</b>.</li>
+<li>Mở <b>đúng hồ sơ GPM</b> đang đăng nhập Gmail của kênh, dán link vào thanh địa chỉ → Enter.</li>
+<li>Chọn đúng Gmail. Kênh Brand thì chọn thêm <b>đúng kênh</b> ở màn kế tiếp.</li>
+<li>Màn "chưa xác minh": <b>Nâng cao → Đi tới Quan ly kenh (không an toàn)</b>.</li>
+<li>Tick <b>cả 2 quyền</b> → <b>Continue</b>.</li>
+<li>Thấy trang <b>"Đã kết nối kênh ..."</b> là xong. Chọn ngách và thị trường, lưu.</li>
+</ol>
+<p>Nếu hồ sơ GPM dùng proxy, cho phép <code>localhost</code> đi thẳng, không qua proxy.</p>
+
+<h3>E2. Kênh chạy trên VPS / máy khác</h3>
+<p>Google chuyển về <code>localhost:4400</code>, trên VPS địa chỉ đó trỏ vào chính VPS, nên phải dán kết quả về máy chạy app.</p>
+<ol>
+<li>Bấm <b>2. Copy link Google (VPS / máy khác)</b>. Link dùng được trong 60 phút và chỉ cho <b>một</b> lần kết nối (bấm Hoàn tất mà lỗi thì phải lấy link mới, không dán lại được). Không tắt hay khởi động lại app trong lúc làm, vì link sẽ mất hiệu lực.</li>
+<li>Gửi link sang VPS (chat, ghi chú, clipboard của phần mềm điều khiển từ xa) và mở trong <b>trình duyệt trên VPS đang đăng nhập đúng Gmail của kênh</b>.</li>
+<li>Chọn tài khoản/kênh → Nâng cao → tiếp tục → tick 2 quyền → Continue.</li>
+<li>Trình duyệt VPS báo <b>không mở được trang</b> <code>localhost</code>. Đây là bình thường. Copy <b>toàn bộ địa chỉ</b> trên thanh địa chỉ (dạng <code>http://localhost:4400/oauth/callback?code=...&amp;scope=...&amp;state=...</code>).</li>
+<li>Về máy anh: <b>Cài đặt → Kênh đã kết nối → "Kênh nằm trên máy khác / VPS?"</b>, dán địa chỉ vào ô rồi bấm <b>Hoàn tất kết nối</b>.</li>
+<li>Thấy "Đã kết nối kênh..." là xong. Mã trong địa chỉ chỉ dùng một lần và hết hạn sau vài phút. Lỗi thì làm lại từ bước 1.</li>
+</ol>
+
+<h3>Sau khi kết nối</h3>
+<ul>
+<li>Điền <b>Ngách, Thị trường, Gmail, Nơi vận hành</b> (ví dụ VPS-3 / proxy Nhật) ngay trong dòng của kênh. Tất cả tìm được ở ô <b>Tìm kênh</b>.</li>
+<li>Số liệu tự đồng bộ mỗi giờ và lúc 08:30 hằng ngày (giờ Việt Nam). Muốn lấy ngay: bấm <b>Đồng bộ</b> ở kênh đó.</li>
+<li>Số liệu Analytics của Google thường trễ 1–2 ngày. Kênh quá mới có thể trống biểu đồ.</li>
+<li>Kênh không còn theo dõi: bấm nút xoá theo dõi ở trang chi tiết kênh. App sẽ thu hồi quyền và xoá dữ liệu.</li>
+</ul>
+
+<h2 class="pb">PHẦN F. Lỗi thường gặp</h2>
+<table>
+<tr><th>Thông báo</th><th>Nguyên nhân và cách xử lý</th></tr>
+<tr><td><code>403: access_denied</code> "chưa hoàn tất quy trình xác minh"</td><td>Gmail chưa có trong <b>Test users</b> của <b>đúng dự án</b>. Cách tìm đúng dự án: (1) tên ứng dụng ghi trên màn lỗi chính là tên ở mục Branding của dự án cần thêm; (2) trong app xem bộ OAuth đang chọn ở ô "Kết nối kênh mới bằng bộ ...", Client ID của bộ đó bắt đầu bằng số dự án. Thêm Gmail vào Test users của dự án đó → Save → chờ 1–2 phút (đôi khi lâu hơn) → bấm copy link mới rồi làm lại. Link cũ không dùng lại được. Hoặc Publish dự án (Phần C).</td></tr>
+<tr><td><code>redirect_uri_mismatch</code></td><td>Redirect URI ở Bước 5 sai. Phải đúng <code>http://localhost:4400/oauth/callback</code>.</td></tr>
+<tr><td>Dự án chưa bật YouTube Data API</td><td>Bật lại API ở Bước 2 trong đúng dự án.</td></tr>
+<tr><td>Kênh hiện "cần kết nối lại"</td><td>Quyền hết hạn (Testing ~7 ngày) hoặc bị thu hồi. Làm lại Phần E cho kênh đó. Publish dự án để hết tình trạng này.</td></tr>
+<tr><td>Không thấy Gmail của kênh ở màn chọn tài khoản</td><td>Đang mở nhầm trình duyệt/hồ sơ. Đóng tab, mở đúng hồ sơ GPM hoặc VPS. Không bấm "Sử dụng tài khoản khác".</td></tr>
+<tr><td>Kết nối nhầm kênh</td><td>Bấm <b>Ngắt kết nối</b> ở kênh sai, kết nối lại và chọn đúng kênh.</td></tr>
+<tr><td>Google không trả mã làm mới</td><td>Vào <code>https://myaccount.google.com/permissions</code> (đúng Gmail đó), gỡ quyền của <i>Quan ly kenh</i>, rồi kết nối lại.</td></tr>
+<tr><td>Không mở được <code>localhost:4400</code> trong GPM</td><td>App chưa chạy, hoặc proxy chặn localhost. Mở shortcut Desktop, cho localhost đi thẳng.</td></tr>
+<tr><td>Client Secret mất / bị lộ</td><td>Google Cloud → Clients → bấm vào client → <b>Add secret</b>, dán secret mới vào app, rồi xoá secret cũ.</td></tr>
+<tr><td>Lỗi ngay sau khi tạo client</td><td>Google cập nhật chậm, chờ 5 phút đến vài giờ.</td></tr>
+</table>
+
+<h2>PHẦN G. Bảo mật</h2>
+<ul>
+<li>Client Secret và mã làm mới lưu trong thư mục <code>app\data\</code> trên máy anh. Không gửi thư mục này cho ai.</li>
+<li>Không gửi ảnh chụp có Client Secret trong chat. Lộ thì tạo secret mới ngay.</li>
+<li>App chỉ có quyền đọc. Muốn thu hồi: bấm <b>Ngắt kết nối</b> trong app, hoặc gỡ quyền tại <code>https://myaccount.google.com/permissions</code>.</li>
+<li>Các kênh cùng một bộ OAuth cùng chia sẻ dự án Google Cloud đó và địa chỉ mạng của máy chạy app khi lấy số liệu.</li>
+</ul>
+
+<h2>Tóm tắt thứ tự làm</h2>
+<table>
+<tr><th>Việc</th><th>Làm ở đâu</th><th>Bao lâu một lần</th></tr>
+<tr><td>Tạo dự án, bật 2 API, Branding, 2 quyền, tạo Client</td><td>Google Cloud (Phần B)</td><td>Một lần cho mỗi bộ OAuth</td></tr>
+<tr><td>Dán Client ID + Secret</td><td>App → Cài đặt</td><td>Một lần cho mỗi bộ</td></tr>
+<tr><td>Publish app (bỏ giới hạn 7 ngày)</td><td>Google Cloud → Audience</td><td>Một lần cho mỗi dự án</td></tr>
+<tr><td>Thêm Gmail vào Test users (nếu còn Testing)</td><td>Google Cloud → Audience</td><td>Mỗi Gmail mới</td></tr>
+<tr><td>Copy link → dán vào đúng GPM / VPS → cho phép</td><td>App + hồ sơ GPM / VPS</td><td>Mỗi kênh, một lần</td></tr>
+</table>
+
+<div class="foot">Quản lý Kênh · tài liệu nội bộ. Bản đầy đủ dạng chữ: Huong dan lay OAuth.txt</div>
+</body></html>

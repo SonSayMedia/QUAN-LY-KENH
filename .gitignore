@@ -1,0 +1,18 @@
+# Dữ liệu thật của hệ thống — TUYỆT ĐỐI không đưa lên GitHub
+# (chứa API key YouTube, OAuth Client Secret, refresh token của từng kênh, cache riêng...)
+app/data/
+
+# Rác hệ điều hành / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+*.bak
+*.bak-*
+
+# Nếu sau này có cài thêm gói qua npm
+node_modules/
+
+# PDF hướng dẫn có chụp màn hình thật lúc tạo OAuth (có thể lộ Client Secret/API key) — không đưa lên GitHub
+Huong dan them kenh va cai OAuth.pdf
+Huong dan them kenh va cai OAuth (ban 2).pdf

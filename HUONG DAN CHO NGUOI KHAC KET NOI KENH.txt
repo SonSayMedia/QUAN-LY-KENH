@@ -1,0 +1,268 @@
+=====================================================================
+  HƯỚNG DẪN: NGƯỜI KHÁC TỰ TẠO OAUTH RIÊNG, ĐƯA KÊNH VÀO HỆ THỐNG
+  CỦA ANH (dùng chung tên miền sonsaymedia.cloud, còn lại tách riêng)
+=====================================================================
+
+MÔ HÌNH ĐANG DÙNG (đọc trước để khỏi nhầm)
+  - App "Quản lý Kênh" chỉ chạy trên MÁY CỦA ANH (http://localhost:4400),
+    không ai khác mở được trực tiếp giao diện này.
+  - App đã hỗ trợ SẴN nhiều "bộ OAuth" (nhiều Client ID/Secret) chạy song
+    song trong cùng một app — mỗi kênh nhớ nó thuộc bộ nào.
+  - Vì vậy CÁCH LÀM ĐÚNG: mỗi người tự tạo một bộ OAuth riêng (project
+    Google Cloud + Client ID/Secret + khoá API riêng của họ), rồi ĐƯA lại
+    Client ID + Client Secret cho anh. Anh là người thêm bộ đó vào app và
+    bấm nút kết nối kênh (mở đúng hồ sơ GPM đang đăng nhập Gmail của kênh
+    đó). Người kia KHÔNG cần tự cài app, không cần máy riêng chạy app.
+  - Cái DUY NHẤT họ không tự làm được là tên miền cho Branding — dùng
+    chung tên miền sonsaymedia.cloud của anh (đã có sẵn 2 trang: trang chủ
+    + chính sách quyền riêng tư). Mọi thứ khác (project, khoá API, OAuth
+    Client, hạn mức 10.000 đơn vị/ngày) của ai người đó dùng, không đụng
+    của anh và không đụng của nhau.
+
+=====================================================================
+PHẦN 0 — ANH HOÀN LÀM TRƯỚC (một lần cho MỖI người mới)
+=====================================================================
+  Mục đích: cho phép project Google Cloud của người đó cũng được công
+  nhận là "đã xác minh chủ sở hữu" tên miền sonsaymedia.cloud, để họ điền
+  được tên miền này vào Branding và Publish app của họ.
+
+  1) Xin Gmail người đó sẽ dùng để tạo Google Cloud project (Gmail cá
+     nhân của họ, không phải Gmail của kênh YouTube).
+  2) Vào https://search.google.com/search-console — đăng nhập bằng Gmail
+     đang là chủ tên miền sonsaymedia.cloud (Gmail anh dùng khi làm
+     "HUONG DAN TEN MIEN VA PUBLISH.txt").
+  3) Chọn tài sản (property) "sonsaymedia.cloud" -> Cài đặt (Settings) ->
+     "Người dùng và quyền" (Users and permissions) -> "Thêm người dùng"
+     (Add user).
+  4) Nhập Gmail của người đó -> chọn quyền "Chủ sở hữu" (Owner) — BẮT
+     BUỘC phải là Owner, chọn "Full"/"Restricted" sẽ KHÔNG được Google
+     Cloud công nhận là xác minh chủ sở hữu tên miền.
+  5) Lưu. Xong — không cần đưa họ quyền DNS hay hosting gì cả, chỉ là
+     quyền công nhận trong Search Console. Anh gỡ được bất cứ lúc nào
+     (xoá người dùng đó khỏi Search Console) mà không ảnh hưởng tên miền.
+
+  Lưu ý: quyền Owner ở Search Console cho họ xem được dữ liệu tìm kiếm
+  của tên miền và có thể tự thêm/xoá Owner khác — chỉ cấp cho người anh
+  tin tưởng trong hệ thống.
+
+
+=====================================================================
+PHẦN 1 — VIỆC NGƯỜI ĐÓ TỰ LÀM (gửi phần này cho họ)
+=====================================================================
+  Điều kiện trước khi bắt đầu: anh Hoàn đã làm xong PHẦN 0 cho Gmail của
+  bạn (báo anh Hoàn khi đã có Gmail để xin cấp quyền).
+
+---------------------------------------------------------------------
+BƯỚC 1. TẠO PROJECT GOOGLE CLOUD RIÊNG
+---------------------------------------------------------------------
+  1) Vào https://console.cloud.google.com, đăng nhập bằng Gmail của bạn
+     (Gmail đã báo anh Hoàn ở Phần 0).
+  2) Góc trên bên trái, cạnh chữ "Google Cloud" -> bấm ô chọn project ->
+     "New Project" -> đặt tên tuỳ ý (ví dụ: Quan ly kenh - <tên bạn>) ->
+     Create.
+  3) Chờ vài giây cho project tạo xong, chọn đúng project này ở ô trên
+     cùng cho các bước sau.
+
+---------------------------------------------------------------------
+BƯỚC 2. BẬT 2 API (chỉ 2 API này)
+---------------------------------------------------------------------
+  1) Menu ☰ -> "APIs & Services" -> "Library".
+  2) Tìm "YouTube Data API v3" -> bấm vào -> "Enable".
+  3) Tìm "YouTube Analytics API" -> bấm vào -> "Enable".
+  (Quyền xem doanh thu ước tính nằm chung trong YouTube Analytics API,
+  không cần bật thêm API nào khác.)
+
+---------------------------------------------------------------------
+BƯỚC 3. TẠO KHOÁ YOUTUBE DATA API (dùng đọc số liệu công khai đối thủ)
+---------------------------------------------------------------------
+  1) Menu ☰ -> "APIs & Services" -> "Credentials" -> "+ Create
+     credentials" -> "API key".
+  2) Copy khoá vừa tạo (dạng bắt đầu bằng "AIza...") -> gửi lại cho anh
+     Hoàn cùng với Client ID/Secret ở Bước 6 (khoá này KHÔNG dán vào ô
+     OAuth, mà dán vào ô "YouTube Data API Key" riêng trong app — anh
+     Hoàn sẽ làm giúp nếu bạn không có quyền vào app).
+  3) (Khuyên làm) Bấm vào khoá vừa tạo -> "Restrict key" -> API
+     restrictions -> chỉ chọn "YouTube Data API v3" -> Save. Việc này
+     giúp khoá chỉ dùng được đúng 1 việc, lỡ lộ cũng đỡ rủi ro.
+
+---------------------------------------------------------------------
+BƯỚC 4. CẤU HÌNH MÀN HÌNH ĐỒNG Ý (OAuth consent screen / Google Auth
+Platform) — dùng chung tên miền sonsaymedia.cloud
+---------------------------------------------------------------------
+  Menu ☰ -> "APIs & Services" -> "OAuth consent screen".
+
+  A. Nếu là lần đầu (thấy nút "Get started"):
+     - App information: App name = tuỳ ý (ví dụ "Quan ly kenh"), User
+       support email = Gmail của bạn -> Next.
+     - Audience: chọn "External" -> Next.
+     - Contact information: Gmail của bạn -> Next.
+     - Tick đồng ý "Google API Services User Data Policy" -> Continue ->
+       Create.
+
+  B. Vào mục "Branding", điền ĐÚNG như sau (khác với hướng dẫn cũ của
+     anh Hoàn — lần này ĐIỀN ĐẦY ĐỦ để Publish được ngay từ đầu):
+       - Application home page:           https://www.sonsaymedia.cloud
+       - Application privacy policy link: https://www.sonsaymedia.cloud/privacy.html
+       - Application terms of service:    để trống (không bắt buộc)
+       - Authorized domains: bấm "Add domain" -> nhập  sonsaymedia.cloud
+         (nếu Google báo chưa xác minh được, báo lại anh Hoàn — có thể
+         Phần 0 chưa làm xong hoặc cần chờ Google cập nhật vài giờ).
+       - KHÔNG tải logo lên (có logo Google sẽ đòi xét duyệt thủ công).
+     Bấm Save.
+
+  C. Mục "Data access" -> "Add or remove scopes" -> thêm ĐÚNG 3 quyền
+     sau (gõ từng dòng vào "Manually add scopes" rồi "Add to table",
+     tick cả 3, bấm Update, rồi bấm thêm "Save" ở cuối trang):
+
+        https://www.googleapis.com/auth/youtube.readonly
+        https://www.googleapis.com/auth/yt-analytics.readonly
+        https://www.googleapis.com/auth/yt-analytics-monetary.readonly
+
+     (Quyền thứ 3 để app đọc doanh thu ước tính — nếu kênh của bạn chưa
+     bật kiếm tiền thì vẫn cứ thêm quyền này, không sao.)
+
+  D. Mục "Audience" -> bấm "Publish app" -> Confirm. Vì Branding đã có
+     đủ tên miền thật ở bước B, Publish thường sẽ bấm được ngay (không
+     cần đợi vài ngày như khi để trống). Nếu Google hỏi có nộp xét duyệt
+     (verification) không -> chọn để sau/bỏ qua, app vẫn dùng được, chỉ
+     hiện màn cảnh báo "Google chưa xác minh ứng dụng" lúc kết nối (bình
+     thường, bấm "Advanced" -> "Go to ... (unsafe)" là qua được).
+     => Làm được bước này NGAY TỪ ĐẦU nghĩa là kênh của bạn sẽ KHÔNG BAO
+        GIỜ bị hỏi kết nối lại sau 7 ngày.
+
+---------------------------------------------------------------------
+BƯỚC 5. TẠO OAUTH CLIENT — LẤY CLIENT ID VÀ CLIENT SECRET
+---------------------------------------------------------------------
+  1) Menu ☰ -> "APIs & Services" -> "Credentials" -> "+ Create
+     credentials" -> "OAuth client ID".
+  2) Application type: "Web application".
+  3) Name: tuỳ ý.
+  4) "Authorized JavaScript origins": để trống.
+  5) "Authorized redirect URIs" -> "+ Add URI" -> nhập ĐÚNG TỪNG KÝ TỰ
+     (đây LUÔN LUÔN là địa chỉ máy của anh Hoàn, vì app chỉ chạy ở đó,
+     không phải máy của bạn):
+
+        http://localhost:4400/oauth/callback
+
+  6) Bấm "Create". Hộp thoại hiện Client ID (kết thúc bằng
+     ".apps.googleusercontent.com") và Client secret (bắt đầu bằng
+     "GOCSPX-"). COPY NGAY CẢ HAI — Google không hiện lại secret sau khi
+     đóng hộp thoại.
+
+---------------------------------------------------------------------
+BƯỚC 6. GỬI LẠI CHO ANH HOÀN
+---------------------------------------------------------------------
+  Gửi qua kênh riêng tư (không dán vào nhóm chat công khai, không chụp
+  ảnh màn hình rồi gửi lung tung):
+    - Client ID
+    - Client Secret
+    - Khoá YouTube Data API (Bước 3)
+    - Tên kênh YouTube + Gmail đang quản lý kênh đó + kênh đang vận hành
+      ở đâu (máy nào / VPS nào / hồ sơ GPM nào)
+
+
+=====================================================================
+PHẦN 2 — ANH HOÀN HOÀN TẤT TRONG APP (sau khi nhận đủ thông tin Bước 6)
+=====================================================================
+  1) Mở app -> "Cài đặt".
+  2) Khung "YouTube Data API Key": nếu đây là khoá API đầu tiên của hệ
+     thống thì dán vào ô "Khóa API" -> "Lưu & kiểm tra" (app hiện chỉ
+     lưu được MỘT khoá YouTube Data API dùng chung cho việc tra cứu đối
+     thủ; khoá riêng của từng người chủ yếu phục vụ hạn mức kênh của họ
+     khi đồng bộ, không cần thay khoá chung mỗi lần thêm người).
+  3) Khung "Google OAuth — các bộ Client ID / Secret":
+       - Ô "Tên gọi (tuỳ chọn)": đặt tên để nhận ra, ví dụ tên người đó.
+       - Ô "Client ID": dán Client ID họ gửi.
+       - Ô "Client Secret": dán Client Secret họ gửi.
+       - Bấm "+ Thêm bộ OAuth".
+     => Bộ mới hiện trong danh sách phía trên, ghi "0 kênh đang dùng".
+  4) Bấm nút "✓ Đã Publish" / "Đánh dấu đã Publish" ngay cho bộ vừa thêm
+     (vì họ đã Publish ở Bước 4D) — để Dashboard không đếm ngược 7 ngày
+     nhầm cho kênh này.
+  5) Kéo xuống khung "Kênh đã kết nối":
+       - Ô "Kết nối kênh mới bằng bộ": chọn ĐÚNG bộ vừa thêm (tên đã đặt
+         ở bước 3).
+       - Ô "Gmail dự kiến (tuỳ chọn)": gõ đúng Gmail của kênh đó, Google
+         sẽ chọn sẵn tài khoản này ở màn chọn tài khoản.
+       - Bấm "+ Kết nối kênh".
+  6) Hộp thoại hiện 2 nút copy link:
+       - Kênh vận hành ở HỒ SƠ GPM trên máy này: bấm nút 1 ("Copy link
+         cho hồ sơ GPM"), dán vào ĐÚNG hồ sơ GPM đang đăng nhập Gmail
+         của kênh đó.
+       - Kênh vận hành ở VPS/máy khác: bấm nút 2 ("Copy link Google"),
+         mở trên trình duyệt của VPS đó (đúng Gmail kênh), cho phép,
+         rồi COPY TOÀN BỘ địa chỉ trang báo lỗi "localhost" (dạng
+         http://localhost:4400/oauth/callback?code=...), quay lại app
+         dán vào ô "Dán địa chỉ callback" -> bấm "Hoàn tất kết nối".
+  7) Trên màn Google: chọn đúng Gmail/kênh -> nếu hiện "Google chưa xác
+     minh ứng dụng" -> "Advanced" -> "Go to ... (unsafe)" -> tick đủ cả
+     3 quyền -> Continue.
+  8) Thấy "✓ Đã kết nối kênh <tên kênh>" là xong. Quay lại app, kênh
+     hiện trong "Kênh đã kết nối" -> điền Ngách, Quốc gia, Thị trường,
+     Gmail, "Nơi vận hành" ngay trong dòng của kênh (tự lưu khi bấm ra
+     ngoài).
+  9) Vì đã Publish ngay từ đầu, kênh này sẽ KHÔNG cần kết nối lại sau
+     7 ngày. Số liệu tự đồng bộ mỗi giờ và 08:30 sáng mỗi ngày; muốn lấy
+     ngay thì bấm "Đồng bộ" ở dòng kênh đó.
+
+
+=====================================================================
+PHẦN 3 — LỖI THƯỜNG GẶP
+=====================================================================
+  * "redirect_uri_mismatch"
+      -> Redirect URI ở Bước 5 sai. Phải đúng từng ký tự:
+         http://localhost:4400/oauth/callback
+
+  * Không thêm được tên miền vào "Authorized domains" / Google báo chưa
+    xác minh
+      -> Phần 0 chưa làm, hoặc làm sai Gmail, hoặc mới làm cần chờ Google
+         cập nhật (vài phút tới vài giờ).
+
+  * "Access blocked" / "app not verified" khi kết nối kênh
+      -> Nếu ĐàPublish (Bước 4D) thì lỗi này không nên xảy ra; nếu vẫn
+         gặp, kiểm tra lại đã Publish thật chưa (mục Audience).
+
+  * Google báo "you must complete your configuration on the Branding
+    page" dù đã điền đủ
+      -> Chờ vài giờ tới 1 ngày rồi thử Publish lại (Google cập nhật
+         chậm), hoặc Ctrl+F5 tải lại trang Branding.
+
+  * Kết nối nhầm kênh / nhầm bộ OAuth
+      -> Trong app bấm "Xoá theo dõi" ở kênh sai, làm lại Bước 2 Phần 2
+         và chọn đúng bộ + đúng Gmail ở màn chọn tài khoản.
+
+  * App báo "Google không trả mã làm mới"
+      -> Vào https://myaccount.google.com/permissions (đúng Gmail của
+         kênh), gỡ quyền ứng dụng, rồi kết nối lại từ Bước 5 Phần 2.
+
+
+=====================================================================
+PHẦN 4 — BẢO MẬT GHI NHỚ
+=====================================================================
+  - Client Secret là bí mật: gửi qua kênh riêng tư, không gửi qua nhóm
+    chat đông người, không chụp màn hình rồi lưu chung với ảnh khác.
+  - Anh Hoàn không gửi thư mục app/data cho ai — nơi đó có Client Secret
+    và refresh token của TẤT CẢ kênh trong hệ thống.
+  - Quyền cấp Owner trong Search Console (Phần 0) chỉ nên cấp cho người
+    thật sự trong hệ thống kênh của anh, và có thể thu hồi bất cứ lúc
+    nào mà không ảnh hưởng gì tới tên miền hay các bộ OAuth đã Publish
+    trước đó.
+  - Mỗi bộ OAuth chỉ có quyền ĐỌC (readonly) — không đăng/sửa/xoá được
+    gì trên kênh, kể cả khi Client Secret của bộ đó bị lộ.
+
+
+=====================================================================
+TÓM TẮT NHANH
+=====================================================================
+  Phần 0 (anh Hoàn, 1 lần/người): Search Console -> Add user -> Gmail
+    của họ -> quyền Owner.
+  Phần 1 (người đó tự làm): Tạo project -> bật 2 API -> tạo khoá API ->
+    Branding dùng domain sonsaymedia.cloud -> Data access 3 quyền ->
+    Publish app -> tạo OAuth Client (redirect
+    http://localhost:4400/oauth/callback) -> gửi Client ID + Secret +
+    khoá API cho anh Hoàn.
+  Phần 2 (anh Hoàn): Cài đặt -> "+ Thêm bộ OAuth" -> đánh dấu đã Publish
+    -> "Kênh đã kết nối" -> chọn bộ -> "+ Kết nối kênh" -> dán link vào
+    đúng hồ sơ GPM/VPS của kênh -> cho phép -> điền Ngách/Thị
+    trường/Gmail/Nơi vận hành.
+=====================================================================

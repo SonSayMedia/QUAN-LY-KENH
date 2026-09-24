@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quản lý Kênh</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c5cff'/%3E%3Cpath d='M9 22l5-6 4 3 5-8' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#/dashboard"><span class="logo"></span>Quản lý Kênh</a>
+  <nav id="nav"></nav>
+  <span class="demo-pill" title="Chưa nối Google OAuth, số liệu là dữ liệu mẫu">Dữ liệu mẫu</span>
+  <a id="api-pill" class="api-pill unset" href="#/settings" title="YouTube Data API v3"><span class="dot"></span><span class="lbl">YouTube Data API v3</span></a>
+  <a id="oauth-pill" class="api-pill unset" href="#/settings" title="Google OAuth"><span class="dot"></span><span class="lbl">Google OAuth</span></a>
+  <a id="ai-pill" class="api-pill unset" href="#/settings" title="API 9Router"><span class="dot"></span><span class="lbl">API 9Router</span></a>
+</header>
+<main id="app"></main>
+<div id="modal" class="modal-wrap" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<div id="tip" class="tip" hidden></div>
+<script>
+// Nạp dữ liệu người dùng từ FILE trên máy (app/data/userdata.json) trước khi app chạy; chuyển dữ liệu cũ từ trình duyệt lên file một lần.
+(function () {
+  window.__QLK_STORE = {};
+  try {
+    var x = new XMLHttpRequest(); x.open('GET', '/api/store', false); x.send();
+    if (x.status === 200) window.__QLK_STORE = JSON.parse(x.responseText) || {};
+    if (!Object.keys(window.__QLK_STORE).length) {
+      var mig = {};
+      for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (/^qlk_/.test(k)) { try { mig[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { /* bỏ qua */ } } }
+      if (Object.keys(mig).length) {
+        var p = new XMLHttpRequest(); p.open('POST', '/api/store', false); p.setRequestHeader('Content-Type', 'application/json'); p.send(JSON.stringify({ set: mig }));
+        window.__QLK_STORE = mig;
+      }
+    }
+  } catch (e) { /* server chưa sẵn sàng: dùng bộ nhớ tạm */ }
+})();
+</script>
+<script src="data.js"></script>
+<script src="trends.js"></script>
+<script src="suggest.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

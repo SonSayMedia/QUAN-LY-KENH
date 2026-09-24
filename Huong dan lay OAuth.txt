@@ -1,0 +1,340 @@
+=====================================================================
+  HƯỚNG DẪN LẤY OAUTH VÀ KẾT NỐI KÊNH YOUTUBE VÀO APP QUẢN LÝ KÊNH
+  (làm từ đầu, từng bước, theo đúng giao diện Google Cloud hiện tại)
+=====================================================================
+
+MỤC ĐÍCH
+  Để app đọc được số liệu CHÍNH XÁC của các kênh anh quản lý (sub, view,
+  giờ xem, bình luận, video...). App chỉ được quyền ĐỌC, không đăng, không
+  xoá, không sửa gì trên kênh.
+
+HIỂU NHANH (đọc 1 phút)
+  - Chỉ cần MỘT bộ OAuth (1 Client ID + 1 Client Secret) cho TẤT CẢ kênh.
+  - Mỗi kênh chỉ cần bấm "cho phép" MỘT lần (làm trong hồ sơ GPM của kênh đó).
+  - Client Secret là BÍ MẬT: không gửi cho ai, KHÔNG chụp màn hình lúc nó
+    đang hiện, chỉ copy rồi dán vào app.
+  - Các bước 1–7 làm trên Google Cloud. Bước 8–9 làm trong app.
+
+CẦN CHUẨN BỊ
+  [ ] Đăng nhập Google Cloud bằng Gmail đã tạo project (ví dụ project tên
+      "My First Project").
+  [ ] Danh sách Gmail đang đăng nhập trong từng hồ sơ GPM (mỗi Gmail đứng
+      tên chủ/quản lý các kênh). Sẽ cần ở BƯỚC 5.
+  [ ] App Quản lý Kênh đang chạy (mở bằng shortcut "Quan Ly Kenh" ngoài
+      màn hình Desktop) -> trang http://localhost:4400
+
+
+=====================================================================
+BƯỚC 1. VÀO ĐÚNG PROJECT
+=====================================================================
+  1) Mở trình duyệt, vào:  https://console.cloud.google.com
+  2) Nhìn góc trên bên trái, cạnh chữ "Google Cloud" có ô chọn project
+     (ví dụ "My First Project"). Bấm vào ô đó, chọn đúng project anh dùng
+     để tạo khoá API YouTube trước đó.
+  => Toàn bộ các bước dưới đều làm trong project này.
+
+
+=====================================================================
+BƯỚC 2. BẬT 2 API (chỉ 2 API này, không bật gì khác)
+=====================================================================
+  1) Bấm menu ☰ (3 gạch, góc trên trái) -> "APIs & Services" -> "Library".
+     (hoặc gõ tên API vào ô Search phía trên cùng)
+  2) Tìm "YouTube Data API v3"  -> bấm vào -> nếu nút là "Enable" thì bấm
+     Enable. Nếu đã hiện "Manage" / "API Enabled" thì đã bật rồi, bỏ qua.
+  3) Quay lại Library, tìm "YouTube Analytics API" -> bấm vào -> bấm
+     "Enable".
+  => Kiểm tra: cả 2 API cùng hiện trạng thái đã bật.
+
+  (Link nhanh, nếu không mở được thì đi bằng menu:
+     https://console.cloud.google.com/apis/library/youtube.googleapis.com
+     https://console.cloud.google.com/apis/library/youtubeanalytics.googleapis.com )
+
+
+=====================================================================
+BƯỚC 3. CẤU HÌNH MÀN HÌNH ĐỒNG Ý (Google Auth Platform)
+=====================================================================
+  Vào menu ☰ -> "APIs & Services" -> "OAuth consent screen"
+  (hoặc tìm "Google Auth Platform"). Bên trái có menu: Overview, Branding,
+  Audience, Clients, Data Access, Verification Center, Settings.
+
+  A. Nếu thấy nút "Get started" (lần đầu) -> bấm, rồi điền lần lượt:
+     - App information:  App name = Quan ly kenh
+                         User support email = chọn Gmail của anh
+                         -> Next
+     - Audience:         chọn "External"  -> Next
+     - Contact information: nhập Gmail của anh -> Next
+     - Tick đồng ý "Google API Services User Data Policy" -> Continue
+       -> Create.
+     => Hiện thông báo "OAuth configuration created".
+
+  B. Nếu đã cấu hình rồi (đã có menu bên trái) thì kiểm tra mục
+     "Branding":
+       * App name có nội dung
+       * User support email đã chọn
+       * Developer contact information (cuối trang) có email
+     Nếu thiếu thì điền rồi bấm "Save".
+
+  LƯU Ý (rất quan trọng):
+  - KHÔNG tải logo lên ở mục Branding. Có logo thì Google sẽ đòi xét duyệt app.
+  - Các ô "Application home page / privacy policy / terms of service" và
+    "Authorized domains": để TRỐNG.
+
+
+=====================================================================
+BƯỚC 4. THÊM 2 QUYỀN CHỈ ĐỌC (mục "Data Access")
+=====================================================================
+  1) Menu bên trái -> "Data Access" -> bấm "Add or remove scopes".
+  2) Khung "Update selected scopes" mở bên phải. Cách thêm:
+     CÁCH A (nhanh): trong bảng, tìm hàng ".../auth/youtube.readonly"
+        (mô tả "View your YouTube account") -> tick ô vuông bên trái.
+        Rồi gõ "yt-analytics" vào ô Filter -> tick hàng
+        ".../auth/yt-analytics.readonly" ("View YouTube Analytics reports").
+     CÁCH B (chắc chắn): kéo khung bên phải xuống dưới cùng, tìm mục
+        "Manually add scopes", dán 2 dòng sau (mỗi dòng một quyền):
+
+           https://www.googleapis.com/auth/youtube.readonly
+           https://www.googleapis.com/auth/yt-analytics.readonly
+
+        rồi bấm "Add to table" -> 2 dòng xuất hiện trong bảng -> tick chúng.
+  3) Kiểm tra: CHỈ có 2 ô được tick (youtube.readonly và
+     yt-analytics.readonly). Không tick gì khác.
+  4) Bấm "Update" ở cuối khung bên phải.
+  5) QUAN TRỌNG: khung đóng lại, anh phải bấm thêm nút "Save" ở cuối trang
+     Data Access. Quên bước này thì quyền không được lưu.
+  => Kết quả đúng: hai quyền hiện trong danh sách
+     ("Your non-sensitive scopes" / "Your sensitive scopes"). Google tự
+     phân loại nên quyền nằm mục nào cũng được.
+
+
+=====================================================================
+BƯỚC 5. THÊM TÀI KHOẢN THỬ (mục "Audience" - Test users)
+=====================================================================
+  Hiện app ở chế độ "Testing" nên CHỈ các Gmail có trong danh sách này mới
+  cấp quyền được. (Nút "Publish app" đang mờ ở máy anh - xem ghi chú ở cuối.)
+
+  1) Menu bên trái -> "Audience".
+  2) Kéo xuống mục "Test users" -> bấm "+ Add users".
+  3) Nhập TẤT CẢ Gmail đang đăng nhập trong các hồ sơ GPM (mỗi Gmail một
+     dòng, hoặc gõ xong bấm Enter, hoặc ngăn cách bằng dấu phẩy).
+     - Nếu kênh là Brand Account (kênh riêng thuộc một Gmail) thì thêm
+       Gmail CHỦ của tài khoản đó, không phải tên kênh.
+  4) Bấm "Save".
+  => Kiểm tra: mục "OAuth user cap" hiện "n users (n test...)" và Gmail
+     hiện trong bảng "Test users".
+  Không cần đăng nhập/xác nhận gì trong các hộp thư đó.
+
+
+=====================================================================
+BƯỚC 6. TẠO OAUTH CLIENT (mục "Clients") - LẤY CLIENT ID VÀ SECRET
+=====================================================================
+  1) Menu bên trái -> "Clients".
+
+  TRƯỜNG HỢP 1 - Anh đã xoá HẾT client cũ (danh sách trống):
+     a) Bấm "+ Create client".
+     b) Application type: chọn "Web application".
+     c) Name: đặt tên tuỳ ý, ví dụ  Quan Ly Kenh
+     d) Kéo xuống "Authorized JavaScript origins": ĐỂ TRỐNG.
+     e) Kéo xuống "Authorized redirect URIs" -> bấm "+ Add URI" -> nhập
+        ĐÚNG TỪNG KÝ TỰ:
+
+           http://localhost:4400/oauth/callback
+
+        Chú ý: chữ "http" (KHÔNG phải https), "localhost" (KHÔNG phải
+        127.0.0.1), cổng 4400, KHÔNG có dấu "/" ở cuối.
+     f) Bấm "Create".
+     g) Hộp thoại "OAuth client created" hiện Client ID và Client secret.
+        >>> COPY NGAY, dán tạm vào Notepad hoặc bấm "Download JSON".
+        >>> Google sẽ KHÔNG hiện lại secret sau khi đóng hộp thoại.
+        >>> ĐỪNG chụp màn hình hộp thoại này để gửi cho ai.
+        Bấm "OK" sau khi đã lưu.
+
+  TRƯỜNG HỢP 2 - Client cũ vẫn còn, chỉ xoá secret cũ:
+     a) Bấm vào tên client trong danh sách.
+     b) Kiểm tra "Authorized redirect URIs" có đúng
+        http://localhost:4400/oauth/callback  (sai thì sửa rồi Save).
+     c) Mục "Client secrets" -> bấm "Add secret" -> copy secret mới ngay
+        (chỉ hiện một lần).
+
+  Nhận biết đúng loại:
+     Client ID     : dài, kết thúc bằng   .apps.googleusercontent.com
+     Client secret : bắt đầu bằng         GOCSPX-
+
+  Ghi chú của Google: cài đặt có thể mất từ 5 phút đến vài giờ mới có hiệu
+  lực. Nếu kết nối bị lỗi ngay sau khi tạo, chờ một lúc rồi thử lại.
+
+
+=====================================================================
+BƯỚC 7. (KHÔNG BẮT BUỘC NGAY) THỬ "PUBLISH APP" ĐỂ KHÔNG PHẢI KẾT NỐI LẠI
+=====================================================================
+  - Ở chế độ Testing, quyền của mỗi kênh hết hạn sau khoảng 7 ngày. Khi đó
+    app hiện "cần kết nối lại" ở kênh đó -> anh chỉ cần làm lại BƯỚC 9 cho
+    kênh ấy (không phải làm lại phần Google Cloud).
+  - Muốn hết hạn thì chuyển sang "In production": vào "Audience" -> bấm
+    "Publish app" -> Confirm. Nếu Google hỏi có gửi xét duyệt không thì
+    chọn không/để sau (app vẫn dùng được, chỉ hiện cảnh báo "chưa xác minh").
+  - Nút này đang bị mờ ở máy anh với dòng "you must complete your
+    configuration on the Branding page" dù Branding đã đủ. Thử lại sau vài
+    giờ hoặc ngày hôm sau (Ctrl+F5). Nếu sáng lên -> bấm Publish, rồi kết
+    nối lại các kênh MỘT lần để lấy quyền không hết hạn.
+  - Trong lúc chờ, cứ làm tiếp BƯỚC 8–9 bằng chế độ Testing.
+
+
+=====================================================================
+BƯỚC 8. DÁN CLIENT ID VÀ CLIENT SECRET VÀO APP
+=====================================================================
+  1) Mở app: http://localhost:4400  (shortcut "Quan Ly Kenh" ngoài Desktop).
+  2) Bấm "Cài đặt" (menu trên cùng).
+  3) Tìm khung "Google OAuth — kênh của anh":
+       Client ID      -> dán Client ID
+       Client Secret  -> dán Client Secret
+       (Redirect URI trong khung chính là dòng anh đã nhập ở Bước 6.)
+  4) Bấm "Lưu".
+  => Đèn góc trên bên phải "Google OAuth" chuyển VÀNG, chữ
+     "chưa kết nối kênh". Đây là BÌNH THƯỜNG (đã nhận khoá, chưa có kênh).
+  5) Nếu app báo "Client ID phải kết thúc bằng .apps.googleusercontent.com"
+     thì anh dán nhầm - kiểm tra lại đúng ô.
+
+
+=====================================================================
+BƯỚC 9. KẾT NỐI TỪNG KÊNH (làm cho MỖI kênh một lần)
+=====================================================================
+  Điều kiện: Gmail trong hồ sơ GPM phải (a) có trong danh sách Test users
+  (Bước 5) và (b) là chủ hoặc quản lý của kênh đó. App phải đang chạy.
+
+  Với mỗi kênh:
+  1) Trong app: "Cài đặt" -> kéo xuống khung "Kênh đã kết nối" -> bấm
+     "Sao chép link kết nối" (link là http://localhost:4400/oauth/start).
+  2) Mở ĐÚNG hồ sơ GPM đang đăng nhập Gmail của kênh đó.
+  3) Dán link vào thanh địa chỉ của hồ sơ GPM -> Enter.
+  4) Màn "Chọn tài khoản": chọn đúng Gmail. Nếu kênh là Brand Account sẽ
+     có thêm màn liệt kê các kênh -> chọn ĐÚNG KÊNH cần kết nối.
+  5) Màn "Google hasn't verified this app" (Google chưa xác minh ứng dụng):
+     bấm "Advanced" (Nâng cao) -> "Go to Quan ly kenh (unsafe)".
+     Đây là bình thường vì app do chính anh tạo, chỉ mình anh dùng.
+  6) Màn xin quyền: tick CẢ 2 quyền (xem tài khoản YouTube + xem báo cáo
+     YouTube Analytics) -> bấm "Continue".
+  7) Thấy trang "✓ Đã kết nối kênh <tên kênh>" là XONG -> đóng tab.
+  8) Quay lại app: kênh hiện trong khung "Kênh đã kết nối". Gõ NGÁCH và
+     QUỐC GIA cho kênh (ví dụ: Stoic / Pháp) - ô tự lưu khi bấm ra ngoài.
+  9) Lặp lại Bước 9 cho các kênh còn lại.
+
+  Sau khi kết nối xong:
+  - Đèn "Google OAuth · N kênh" chuyển XANH.
+  - Dữ liệu mẫu của các kênh của anh được thay bằng dữ liệu thật; nhãn
+    góc phải ghi "Kênh của anh: thật · đối thủ: mẫu".
+  - Số liệu tự đồng bộ mỗi giờ và lúc 08:30 hằng ngày (giờ Việt Nam).
+    Muốn lấy ngay: bấm "Đồng bộ" ở kênh đó.
+  - Số liệu Analytics của Google thường trễ 1–2 ngày; các con số "+ mới
+    theo ngày" sẽ chính xác dần sau vài ngày app chạy.
+
+
+=====================================================================
+LỖI THƯỜNG GẶP VÀ CÁCH XỬ LÝ
+=====================================================================
+  * "redirect_uri_mismatch"
+      -> Địa chỉ ở Bước 6 sai. Sửa cho đúng từng ký tự:
+         http://localhost:4400/oauth/callback
+
+  * "Access blocked" / "app not verified" / không cho tiếp tục
+      -> Gmail đang dùng CHƯA có trong Test users (Bước 5). Thêm vào rồi thử lại.
+
+  * "Error 403: access_denied"
+      -> Thường là Gmail chưa thêm vào Test users, hoặc anh bấm Huỷ.
+
+  * Sau khi tạo client bị lỗi ngay
+      -> Chờ 5 phút đến vài giờ rồi thử lại (Google cập nhật chậm).
+
+  * Kết nối nhầm kênh
+      -> Trong app bấm "Ngắt kết nối" ở kênh sai, rồi làm lại Bước 9 và chọn
+         đúng kênh ở màn chọn tài khoản.
+
+  * App báo "Google không trả mã làm mới"
+      -> Vào https://myaccount.google.com/permissions (đúng Gmail đó), gỡ
+         quyền của "Quan ly kenh", rồi kết nối lại.
+
+  * Không mở được localhost:4400 trong hồ sơ GPM
+      -> App chưa chạy (mở shortcut Desktop), hoặc hồ sơ GPM dùng proxy:
+         cho phép "localhost" đi thẳng, không qua proxy.
+
+  * Kênh hiện "cần kết nối lại"
+      -> Quyền hết hạn (Testing khoảng 7 ngày) hoặc bị thu hồi: làm lại
+         Bước 9 cho kênh đó.
+
+  * Biểu đồ của kênh mới bị trống
+      -> Kênh quá mới hoặc Google chưa có số liệu (thường trễ 1–2 ngày).
+
+  * Ô Client Secret báo không hợp lệ / mất secret
+      -> Tạo secret mới: Google Cloud -> Clients -> bấm vào client ->
+         "Add secret", dán secret mới vào app.
+
+
+=====================================================================
+BẢO MẬT - GHI NHỚ
+=====================================================================
+  - Client Secret và mã làm mới (refresh token) lưu trong thư mục
+    app\data\ trên máy anh. KHÔNG gửi thư mục app\data cho ai.
+  - Không chụp/gửi màn hình đang hiện Client Secret.
+  - App chỉ có quyền ĐỌC. Muốn thu hồi: bấm "Ngắt kết nối" trong app, hoặc
+    vào https://myaccount.google.com/permissions và gỡ quyền của app.
+  - Tất cả kênh dùng chung một project Google Cloud và cùng địa chỉ mạng
+    khi lấy số liệu.
+
+=====================================================================
+TÓM TẮT NHANH THỨ TỰ LÀM
+=====================================================================
+  1 Vào đúng project  ->  2 Bật YouTube Data API v3 + YouTube Analytics API
+  3 Branding đủ 3 ô (tên app, email hỗ trợ, email liên hệ), KHÔNG logo
+  4 Data Access: thêm 2 quyền chỉ đọc -> Update -> SAVE
+  5 Audience: Add users (Gmail các hồ sơ GPM) -> Save
+  6 Clients: Create client (Web application, redirect
+    http://localhost:4400/oauth/callback) -> COPY Client ID + Secret
+  7 (Tuỳ chọn) Thử Publish app
+  8 App -> Cài đặt: dán Client ID + Secret -> Lưu
+  9 App -> "Sao chép link kết nối" -> mở trong từng hồ sơ GPM -> cho phép
+=====================================================================
+
+
+=====================================================================
+KÊNH NẰM TRÊN VPS / MÁY KHÁC (không mở được localhost:4400 từ đó)
+=====================================================================
+Vì Google chuyển về địa chỉ localhost:4400, trên VPS địa chỉ đó trỏ vào CHÍNH VPS chứ không phải máy anh.
+Cách xử lý: lấy link Google từ app -> mở trên VPS -> copy địa chỉ trang báo lỗi -> dán lại vào app.
+
+Làm cho MỖI kênh trên VPS:
+  1) Mở app trên máy anh: Cài đặt -> "Kênh đã kết nối" -> mở mục "Kênh nằm trên máy khác / VPS?".
+  2) Bấm "Sao chép link Google". (Link dùng được trong 60 phút và chỉ cho MỘT lần kết nối; app KHÔNG được tắt/khởi động lại trong lúc làm.)
+  3) Gửi link sang VPS (chat/ghi chú/clipboard của phần mềm điều khiển từ xa...) rồi mở trong TRÌNH DUYỆT TRÊN VPS
+     đang đăng nhập đúng Gmail của kênh.
+  4) Chọn tài khoản/kênh -> "Advanced" -> "Go to ... (unsafe)" -> tick cho phép cả 2 quyền -> Continue.
+  5) Trình duyệt trên VPS sẽ báo KHÔNG MỞ ĐƯỢC trang (localhost:4400) - ĐÂY LÀ BÌNH THƯỜNG.
+     Copy TOÀN BỘ địa chỉ trên thanh địa chỉ, dạng:
+       http://localhost:4400/oauth/callback?code=4/0A...&scope=...&state=...
+  6) Về máy anh, dán địa chỉ đó vào ô "Dán địa chỉ http://localhost:4400/oauth/callback?code=..." -> bấm "Hoàn tất kết nối".
+  7) Thấy thông báo "Đã kết nối kênh ..." là xong; đặt NGÁCH và THỊ TRƯỜNG cho kênh.
+Lưu ý: mã trong địa chỉ chỉ dùng MỘT lần và hết hạn sau vài phút; lỗi thì bấm "Sao chép link Google" làm lại từ bước 2.
+Gmail của kênh trên VPS cũng phải nằm trong danh sách Test users (Bước 5) nếu app còn ở chế độ Testing.
+
+
+=====================================================================
+THÊM MỘT BỘ OAUTH THỨ HAI (dự phòng khi bộ hiện tại gần đủ 100 suất)
+=====================================================================
+Mỗi bộ = MỘT project Google Cloud riêng. Làm lại BƯỚC 1–6 trên một project MỚI:
+  - Bật YouTube Data API v3 + YouTube Analytics API trong project mới.
+  - Cấu hình màn hình đồng ý, thêm 2 quyền chỉ đọc, thêm Test users (các Gmail sẽ kết nối bằng bộ này).
+  - Tạo OAuth Client (Web) với Redirect URI y hệt:  http://localhost:4400/oauth/callback
+  - Vào app: Cài đặt -> "Google OAuth — các bộ Client ID / Secret" -> nhập Tên gọi + Client ID + Client Secret -> "+ Thêm bộ OAuth".
+Khi kết nối kênh mới: ở mục "Kênh đã kết nối" chọn ô "Kết nối kênh mới bằng bộ ..." (app tự gợi ý bộ còn nhiều suất nhất).
+Mỗi kênh nhớ nó thuộc bộ nào; các kênh cũ vẫn chạy bằng bộ cũ. Bộ chỉ xoá được khi không còn kênh dùng.
+Bộ đếm "đã dùng X/100 suất" tính CẢ kênh đã xoá (Google tính suốt vòng đời project).
+LƯU Ý: dùng nhiều project để né giới hạn có rủi ro với chính sách của Google (đã nói ở trên) — dùng thận trọng.
+
+=====================================================================
+QUY TRÌNH THÊM KÊNH CHO TỪNG GMAIL (mỗi Gmail 1 kênh Brand, chạy trên proxy/VPS khác nhau)
+=====================================================================
+Cho MỖI Gmail/kênh:
+  1) Thêm Gmail vào Test users của project dùng để kết nối (nếu app còn Testing).
+  2) Ở app chọn bộ OAuth (ô "Kết nối kênh mới bằng bộ ...").
+  3) Kênh mở được localhost:4400 (GPM trên máy anh): bấm "+ Kết nối kênh" hoặc "Sao chép link kết nối" rồi dán vào hồ sơ đó.
+     Kênh trên VPS: dùng mục "Kênh nằm trên máy khác / VPS" (Sao chép link Google -> mở trên VPS -> dán địa chỉ callback về).
+  4) Kết nối xong: điền Ngách + Thị trường + Gmail + "Nơi vận hành" (ví dụ VPS-3 / proxy Nhật) ngay trong dòng của kênh.
+  5) "Nơi vận hành" và Gmail tìm kiếm được ở ô "Tìm kênh" của Quản lý Kênh.

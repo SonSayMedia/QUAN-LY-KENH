@@ -61,7 +61,7 @@
     scanUrl: '',
     scanName: '',
     vsort: 'views',
-    detailRange: 28,
+    detailRange: 28, detailMetric: 'views',
     dashNiche: 'all', dashSort: 'rev', dashRankAll: false, dashRange: 7,
     vidRange: '28', vidTab: 'over', vidMetric: 'views', vidTraffic: 'all', geoMore: false,
   };
@@ -89,14 +89,14 @@
 
   // ---------- Biểu đồ ----------
   const CHARTS = {};
-  function areaChart(key, values, color, unit) {
+  function areaChart(key, values, color, unit, fmtFn) {
     const W = 600, H = 170, pad = 6;
     const min = Math.min(...values), max = Math.max(...values);
     const span = max - min || 1;
     const pts = values.map((v, i) => [pad + (i / (values.length - 1)) * (W - pad * 2), H - pad - ((v - min) / span) * (H - pad * 2 - 8)]);
     const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
     const area = line + ` L${pts[pts.length - 1][0]} ${H} L${pts[0][0]} ${H} Z`;
-    CHARTS[key] = { values, unit, pts, W };
+    CHARTS[key] = { values, unit, pts, W, H, color, fmt: fmtFn || fmt };
     const gid = 'g' + key;
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-chart="${key}">
       <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
@@ -206,23 +206,30 @@
     const n = realOwn ? D.OWN.filter((c) => c.niche === NO_NICHE).length : 0;
     return n ? `<div class="apibanner"><span>🏷️ ${n} kênh chưa có ngách — gõ hoặc chọn ngách ngay ở cột <b>Chủ đề</b> trong bảng bên dưới. Ngách giúp gợi ý bài cộng đồng đúng kênh, so sánh với đối thủ và bắt trend.</span></div>` : '';
   };
-  const nicheInput = (c) => `<div class="nichecell"><input class="nichein ${c.niche === NO_NICHE ? 'empty' : ''}" list="cniches" data-cmeta="niche" data-cid="${esc(c.id)}" value="${c.niche === NO_NICHE ? '' : esc(c.niche)}" placeholder="Đặt ngách…" title="Gõ hoặc chọn ngách của kênh rồi bấm ra ngoài để lưu"><select class="mktin ${c.market ? '' : 'empty'}" data-cmeta="market" data-cid="${esc(c.id)}" title="Thị trường (ngôn ngữ) của kênh">${marketOpts(c.market, true)}</select></div>`;
-  // Người quản lý: CHỈ chọn từ danh sách cố định (Cài đặt) — không gõ tự do, để lọc/so sánh chính xác giữa các người.
-  // Mỗi người có 1 màu tự động gán lúc thêm (managers()/addManager ở google.js) — tô luôn cả ô chọn theo màu người đang gán.
-  const managerColor = (name) => (((api && api.managers) || []).find((m) => m.name === name) || {}).color || '';
+  // Màu ngách: gán tự động theo tên ngách (hash), không cần cấu hình tay — mỗi ngách luôn ra đúng 1 màu cố định.
+  const NICHE_COLORS = ['#7c5cff', '#22c1a5', '#f5a524', '#ef5b7b', '#4aa3ff', '#9bd23c', '#c26bff', '#ff8a4c', '#2dd4bf', '#f43f5e'];
   const hexA = (hex, a) => { const n = parseInt(String(hex).replace('#', ''), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+  const nicheColor = (n) => { if (!n || n === NO_NICHE) return ''; let h = 0; for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return NICHE_COLORS[h % NICHE_COLORS.length]; };
+  const nicheInput = (c) => {
+    const nc = nicheColor(c.niche);
+    const inStyle = nc ? `background:${hexA(nc, 0.28)};border-color:${hexA(nc, 0.6)};color:#fff;font-weight:600;` : '';
+    return `<div class="nichecell"><input class="nichein ${c.niche === NO_NICHE ? 'empty' : ''}" style="${inStyle}" list="cniches" data-cmeta="niche" data-cid="${esc(c.id)}" value="${c.niche === NO_NICHE ? '' : esc(c.niche)}" placeholder="Đặt ngách…" title="Gõ hoặc chọn ngách của kênh rồi bấm ra ngoài để lưu"><select class="mktin ${c.market ? '' : 'empty'}" data-cmeta="market" data-cid="${esc(c.id)}" title="Thị trường (ngôn ngữ) của kênh">${marketOpts(c.market, true)}</select>${realOwn ? managerSelect(c) : ''}</div>`;
+  };
+  // Người quản lý: CHỈ chọn từ danh sách cố định (Cài đặt) — không gõ tự do, để lọc/so sánh chính xác giữa các người.
+  // Mỗi người có 1 màu tự động gán lúc thêm (managers()/addManager ở google.js) — tô luôn cả ô chọn theo màu người đang gán; chữ luôn trắng, chỉ nền/viền đổi theo màu người đó.
+  const managerColor = (name) => (((api && api.managers) || []).find((m) => m.name === name) || {}).color || '';
   // Thẻ đọc (không chỉnh sửa) hiển thị người quản lý — dùng ở các bảng tóm tắt (Dashboard)
   const managerBadge = (c) => {
     if (!c.manager) return '';
     const col = managerColor(c.manager);
-    const style = col ? `background:${hexA(col, 0.16)};border-color:${hexA(col, 0.5)};color:${col};` : '';
+    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:#fff;` : '';
     return `<span class="tag" style="${style}">${esc(c.manager)}</span>`;
   };
-  const nicheTag = (n) => (n && n !== NO_NICHE ? `<span class="tag">${esc(n)}</span>` : '');
+  const nicheTag = (n) => { if (!n || n === NO_NICHE) return ''; const nc = nicheColor(n); return `<span class="tag" style="background:${hexA(nc, 0.28)};border:1px solid ${hexA(nc, 0.6)};color:#fff;">${esc(n)}</span>`; };
   const managerSelect = (c) => {
     const list = (api && api.managers) || [];
     const col = c.manager ? managerColor(c.manager) : '';
-    const style = col ? `background:${hexA(col, 0.16)};border-color:${hexA(col, 0.5)};color:${col};font-weight:600;` : '';
+    const style = col ? `background:${hexA(col, 0.28)};border-color:${hexA(col, 0.6)};color:#fff;font-weight:600;` : '';
     return `<select class="mktin ${c.manager ? '' : 'empty'}" style="${style}" data-cmeta="manager" data-cid="${esc(c.id)}" title="Người quản lý kênh này"><option value="" style="background:#101017;color:#e8e8ef;">— chưa gán —</option>${list.map((m) => `<option value="${esc(m.name)}" ${c.manager === m.name ? 'selected' : ''} style="background:#101017;color:#e8e8ef;">${esc(m.name)}</option>`).join('')}</select>`;
   };
   function nicheList() {
@@ -250,8 +257,7 @@
     const rows = list.map((c) => `
       <tr class="click" data-go="#/channel/${c.id}">
         <td class="l"><div class="chan"><button class="pin ${pins.includes(c.id) ? 'on' : ''}" data-act="pin" data-v="${c.id}" title="Ghim lên đầu">${pins.includes(c.id) ? '★' : '☆'}</button>${avatar(c)}<div><div class="n">${esc(c.name)}${c.noPost ? ' <span class="tag" title="Đã ngừng đăng bài — không nhắc lịch đăng">⏸ Ngừng đăng</span>' : ''}${notes[c.id] ? ' <span title="' + esc(notes[c.id]) + '">📝</span>' : ''}</div><div class="s">${realOwn && (c.where || c.gmail) ? esc([c.where, c.gmail].filter(Boolean).join(' · ')) : (c.country ? esc(c.country) + ' · ' : '') + 'Đã kết nối'}</div></div></div></td>
-        <td class="l">${realOwn ? nicheInput(c) : `<span class="tag">${esc(c.niche)}</span>`}</td>
-        <td class="l">${realOwn ? managerSelect(c) : `<span class="tag">${esc(c.manager || '—')}</span>`}</td>
+        <td class="l">${realOwn ? nicheInput(c) : `${nicheTag(c.niche)} ${managerBadge(c)}`}</td>
         <td class="big">${fmt(c.videos)}</td>
         <td>${newCell(gain(c.subs, 1), last(c.subs))}</td>
         <td>${newCell(gain(c.views, 1), last(c.views))}</td>
@@ -270,8 +276,8 @@
       <button class="btn sm" data-act="csvOwn">Xuất CSV</button></div>`;
     return head(ICON.tv, 'Quản lý Kênh', `Danh sách kênh · ${D.OWN.length} kênh`, `${updateNote()}<button class="btn primary" data-act="addOwn">+ Thêm kênh</button>`) + apiBanner() + noNicheBanner() + strip + `<datalist id="cniches">${nicheList().map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
       <div class="card tablewrap"><table class="stk">
-        <thead><tr><th class="l">Tên kênh</th><th class="l">Chủ đề</th><th class="l">Người quản lý</th><th>Tổng video</th><th>Tổng SUB<br><small>+ mới theo ngày</small></th><th>Tổng lượt xem<br><small>+ mới theo ngày</small></th><th>Xu hướng 28 ngày</th><th>Tương tác<br><small>bình luận chưa trả lời</small></th><th>Doanh thu 28 ngày<br><small>ước tính (USD)</small></th><th class="l">Tình trạng</th><th></th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="11" class="l note">Không có kênh nào phù hợp bộ lọc.</td></tr>'}</tbody></table></div>
+        <thead><tr><th class="l">Tên kênh</th><th class="l">Chủ đề / Người quản lý</th><th>Tổng video</th><th>Tổng SUB<br><small>+ mới theo ngày</small></th><th>Tổng lượt xem<br><small>+ mới theo ngày</small></th><th>Xu hướng 28 ngày</th><th>Tương tác<br><small>bình luận chưa trả lời</small></th><th>Doanh thu 28 ngày<br><small>ước tính (USD)</small></th><th class="l">Tình trạng</th><th></th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="10" class="l note">Không có kênh nào phù hợp bộ lọc.</td></tr>'}</tbody></table></div>
       <p class="note">“+ mới theo ngày” tính theo ngày dương lịch (0h–24h) như YouTube Studio. Cột Tình trạng: đỏ nếu lượt xem 7 ngày giảm quá ${Math.round(HEALTH.dropRed * 100)}% hoặc ${HEALTH.staleRed} ngày chưa có video; vàng nếu giảm quá ${Math.round((1 - HEALTH.dropAmber) * 100)}%, ${HEALTH.staleAmber} ngày chưa có video hoặc SUB không tăng 7 ngày.</p>`;
   }
 
@@ -292,27 +298,44 @@
     const own = c.kind === 'own';
     const backHref = own ? '#/channels' : '#/tracker';
     const stat = (k, arr, extra) => `<div class="card stat"><div class="k">${k}</div><div class="v">${fmt(last(arr))}<span class="d ${gain(arr, r) < 0 ? 'neg' : ''}">${signed(gain(arr, r))}</span></div>${extra || ''}</div>`;
+    // Ô chỉ số bấm được để đổi biểu đồ bên dưới (như YouTube Studio) — số hiện ra đổi theo khoảng 7/28/90 ngày đang chọn.
+    const metricCard = (key, innerHtml) => `<div class="card stat click ${state.detailMetric === key ? 'active' : ''}" data-act="detailMetric" data-v="${key}">${innerHtml}</div>`;
+    const sumRange = (arr, days) => (arr || []).slice(N - 1 - days, N - 1).reduce((t, x) => t + x, 0);
+    const avgRange = (arr, days) => { const seg = (arr || []).slice(N - 1 - days, N - 1); return seg.length ? seg.reduce((t, x) => t + x, 0) / seg.length : 0; };
+    const revField = (base) => (r === 7 ? base + '7' : r === 28 ? base + '28' : base + '90');
+    const hourFmt = (v) => fmt(Math.round(v * 10) / 10) + ' giờ';
+    const METRICS = {
+      views: { label: 'Số lượt xem', color: '#7c5cff', arr: c.views, value: () => (c.views ? gain(c.views, r) : null), fmt: fmt, tipFmt: fmt },
+      watchtime: { label: 'Thời gian xem', color: '#4c8bf5', arr: c.watchMinutesDaily, value: () => (c.watchMinutesDaily ? sumRange(c.watchMinutesDaily, r) / 60 : null), fmt: hourFmt, tipFmt: (v) => hourFmt(v / 60) },
+      subs: { label: 'Số người đăng ký', color: '#22c1a5', arr: c.subs, value: () => (c.subs ? gain(c.subs, r) : null), fmt: signed, tipFmt: fmt },
+      avgdur: { label: 'Thời lượng xem trung bình', color: '#f5a524', arr: c.avgViewDuration, value: () => (c.avgViewDuration ? avgRange(c.avgViewDuration, r) : null), fmt: durTxt, tipFmt: durTxt },
+      rpm: { label: 'RPM toàn kênh', color: '#ef5b7b', arr: c.rpmDaily, value: () => (revOk(c) ? c.revenue[revField('rpm')] : null), fmt: money, tipFmt: money },
+      revenue: { label: 'Doanh thu ước tính', color: '#8bc34a', arr: c.revenueDaily, value: () => (revOk(c) ? c.revenue[revField('d')] : null), fmt: money, tipFmt: money },
+    };
+    const statInner = (key) => {
+      const m = METRICS[key], v = m.value();
+      return v == null
+        ? `<div class="k">${m.label}</div><div class="v" style="font-size:14px">${c.revenue && c.revenue.state === 'noscope' ? 'Cần kết nối lại kênh' : 'Chưa có số liệu'}</div>`
+        : `<div class="k">${m.label}</div><div class="v">${m.fmt(v)}</div>`;
+    };
     const mult = new Map(withMultiples(c).map((o) => [o.v, o.x]));
     const vids = c.videoList.slice().sort((a, b) => (state.vsort === 'views' ? b.views - a.views : new Date(b.date) - new Date(a.date)));
     const nHit = vids.filter((v) => !v.isNew && mult.get(v) >= VIRAL_X).length;
     const nLow = vids.filter((v) => !v.isNew && mult.get(v) <= LOW_X).length;
     const showRev = own && realOwn; // cột doanh thu luôn hiện cho kênh thật; chưa có số thì hiện "—"
-    const revStat = own && realOwn ? (revOk(c)
-      ? `<div class="card stat"><div class="k">Doanh thu 28 ngày (ước tính)</div><div class="v">${money(c.revenue.d28)}<span class="d">7 ngày ${money(c.revenue.d7)}</span></div></div>`
-      : `<div class="card stat"><div class="k">Doanh thu</div><div class="v" style="font-size:14px">${c.revenue && c.revenue.state === 'noscope' ? 'Cần kết nối lại kênh để cấp quyền' : 'Chưa có số liệu'}</div><div class="note" style="font-size:12px">${esc((c.revenue && c.revenue.msg) || '')}</div></div>`) : '';
-    const rpmStat = revOk(c) && c.revenue.rpm28 != null
-      ? `<div class="card stat"><div class="k" title="Doanh thu ước tính trên 1.000 lượt xem">RPM toàn kênh (28 ngày)</div><div class="v">${money(c.revenue.rpm28)}<span class="d">7 ngày ${c.revenue.rpm7 != null ? money(c.revenue.rpm7) : '—'}</span></div></div>`
-      : `<div class="card stat"><div class="k">RPM toàn kênh (28 ngày)</div><div class="v" style="font-size:14px">${c.revenue && c.revenue.state === 'noscope' ? 'Cần kết nối lại kênh' : 'Chưa có số liệu'}</div></div>`;
     const vRpm = (v) => (v.revAll != null && v.views > 0 ? money((v.revAll / v.views) * 1000) : '—');
     const badges = (v) => `${v.isNew ? '<span class="badge new">MỚI</span>' : ''}${v.isTop ? '<span class="badge top">NỔI NHẤT</span>' : ''}${!v.isNew && mult.get(v) >= VIRAL_X ? `<span class="badge hit">NỔ ×${xTag(mult.get(v))}</span>` : ''}${!v.isNew && mult.get(v) <= LOW_X ? '<span class="badge low">THẤP</span>' : ''}`;
     // Kênh thật: Video | Lượt xem | Bình luận | Thời lượng xem | Doanh thu tổng | Ngày đăng — bấm vào dòng để mở trang chi tiết video
+    const vthumb = (v) => `<td>${v.thumb ? `<a href="${esc(v.url)}" target="_blank" rel="noopener"><img class="trthumb" style="width:64px;height:36px" src="${esc(v.thumb)}" alt="" loading="lazy"></a>` : ''}</td>`;
     const vrows = vids.map((v, i) => (showRev ? `
       <tr class="click" data-go="#/video/${esc(c.id)}/${esc(v.id)}"><td class="l"><input type="checkbox" data-vt="${i}" title="Chọn để copy"></td>
+        ${vthumb(v)}
         <td class="l vt" title="${esc(v.title)}">${esc(v.title)}${badges(v)}${v.url ? ` <a href="${esc(v.url)}" target="_blank" rel="noopener" title="Mở video trên YouTube" class="note">↗</a>` : ''}</td>
         <td class="big">${fmt(v.views)}</td><td>${v.comments > 0 ? `<button class="cbtn" data-act="vidComments" data-v="${esc(c.id)}|${esc(v.id)}" title="Xem bình luận chưa trả lời của video này">💬 ${fmt(v.comments)}</button>` : '0'}</td>
-        <td>${v.avgDur != null ? durTxt(v.avgDur) : '—'}</td><td>${v.avgPct != null ? v.avgPct.toFixed(1).replace('.', ',') + '%' : '—'}</td><td class="big">${v.revAll != null ? money(v.revAll) : '—'}</td><td>${vRpm(v)}</td>
+        <td style="width:90px">${v.avgDur != null ? durTxt(v.avgDur) : '—'}</td><td>${v.avgPct != null ? v.avgPct.toFixed(1).replace('.', ',') + '%' : '—'}</td><td class="big" style="width:100px">${v.revAll != null ? money(v.revAll) : '—'}</td><td>${vRpm(v)}</td>
         <td>${new Date(v.date).toLocaleDateString('vi-VN')}</td></tr>` : `
       <tr><td class="l"><input type="checkbox" data-vt="${i}" title="Chọn để copy"></td>
+        ${vthumb(v)}
         <td class="l vt" title="${esc(v.title)}">${v.url ? `<a href="${esc(v.url)}" target="_blank" rel="noopener" style="text-decoration:underline">${esc(v.title)}</a>` : esc(v.title)}${badges(v)}</td>
         <td class="big">${fmt(v.views)}</td><td>${fmt(v.likes)}</td><td>${fmt(v.comments)}</td>
         <td>${new Date(v.date).toLocaleDateString('vi-VN')}</td></tr>`)).join('');
@@ -322,19 +345,23 @@
     const isReal = (own && realOwn) || (!own && realRivals);
     const chUrl = `https://www.youtube.com/channel/${encodeURIComponent(c.id)}`;
     return `<a class="back" href="${backHref}">← ${own ? 'Danh sách kênh' : 'Tracker đối thủ'}</a>
-      <div class="card profile">${avatar(c)}<div><h2>${isReal ? `<a href="${esc(chUrl)}" target="_blank" rel="noopener" style="text-decoration:underline" title="Mở kênh trên YouTube">${esc(c.name)}</a>` : esc(c.name)} <span class="tag ${own ? 'mine' : 'amber'}">${own ? 'Của mình' : 'Đối thủ'}</span> <span class="tag">${esc(c.niche)}</span></h2>
+      <div class="card profile">${avatar(c)}<div><h2>${isReal ? `<a href="${esc(chUrl)}" target="_blank" rel="noopener" style="text-decoration:underline" title="Mở kênh trên YouTube">${esc(c.name)}</a>` : esc(c.name)} <span class="tag ${own ? 'mine' : 'amber'}">${own ? 'Của mình' : 'Đối thủ'}</span> ${nicheTag(c.niche)}</h2>
         <div class="sub note">${fmt(last(c.subs))} sub · ${fmt(last(c.views))} lượt xem · ${fmt(c.videos)} video</div></div>
         <div style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${chips('d', r, 'detailRange')}${isReal ? `<a class="btn sm" href="${esc(chUrl)}" target="_blank" rel="noopener">↗ Xem trên YouTube</a>` : ''}${own && realOwn ? `<button class="btn sm" data-act="toggleNoPost" data-v="${esc(c.id)}">${c.noPost ? '▶ Bật lại nhắc đăng bài' : '⏸ Kênh đã ngừng đăng bài'}</button>` : ''}${isReal ? `<button class="btn sm danger" data-act="delChan" data-v="${esc(c.id)}">🗑 Xoá theo dõi</button>` : ''}</div></div>
       ${own ? healthCard(c) : ''}${own ? profileCard(c) : ''}
-      <div class="stats">${stat('Subscriber', c.subs)}${stat('Lượt xem', c.views)}<div class="card stat"><div class="k">Video</div><div class="v">${fmt(c.videos)}</div></div>${own ? stat('Bình luận (toàn kênh)', c.comments) : ''}${own && realOwn ? rpmStat : own && c.watchMinutes28 != null ? `<div class="card stat"><div class="k">Giờ xem (28 ngày)</div><div class="v">${fmt(c.watchMinutes28 / 60)}</div></div>` : ''}${revStat}</div>
-      <div class="charts">
-        <div class="card chart"><div class="ct"><span>Subscriber</span><span><b>${fmt(last(c.subs))}</b><span class="up ${gain(c.subs, r) < 0 ? 'neg' : ''}">${signed(gain(c.subs, r))}</span></span></div>${areaChart('s' + c.id + r, sl(c.subs), '#22c1a5', 'sub')}<div class="axis"><span>${dayLabel(N - 1 - r)}</span><span>${dayLabel(N - 1)}</span></div></div>
-        <div class="card chart"><div class="ct"><span>Lượt xem kênh</span><span><b>${fmt(last(c.views))}</b><span class="up ${gain(c.views, r) < 0 ? 'neg' : ''}">${signed(gain(c.views, r))}</span></span></div>${areaChart('v' + c.id + r, sl(c.views), '#7c5cff', 'view')}<div class="axis"><span>${dayLabel(N - 1 - r)}</span><span>${dayLabel(N - 1)}</span></div></div>
-      </div>
+      <div class="stats">${own
+        ? ['views', 'watchtime', 'subs', 'avgdur', 'rpm', 'revenue'].map((k) => metricCard(k, statInner(k))).join('')
+        : `${metricCard('subs', `<div class="k">Subscriber</div><div class="v">${fmt(last(c.subs))}<span class="d ${gain(c.subs, r) < 0 ? 'neg' : ''}">${signed(gain(c.subs, r))}</span></div>`)}${metricCard('views', `<div class="k">Lượt xem</div><div class="v">${fmt(last(c.views))}<span class="d ${gain(c.views, r) < 0 ? 'neg' : ''}">${signed(gain(c.views, r))}</span></div>`)}<div class="card stat"><div class="k">Video</div><div class="v">${fmt(c.videos)}</div></div>`}</div>
+      ${(() => {
+        const activeKey = METRICS[state.detailMetric] ? state.detailMetric : 'views';
+        const am = METRICS[activeKey];
+        const v = am.value();
+        return `<div class="charts single">${am.arr && v != null ? `<div class="card chart"><div class="ct"><span>${am.label}</span><span><b>${am.fmt(v)}</b><span class="note" style="font-size:11px;margin-left:6px">${r} ngày qua</span></span></div>${areaChart('m' + c.id + r + activeKey, sl(am.arr), am.color, activeKey, am.tipFmt)}<div class="axis"><span>${dayLabel(N - 1 - r)}</span><span>${dayLabel(N - 1)}</span></div></div>` : `<div class="card chart"><div class="dempty">Chưa có dữ liệu theo ngày cho chỉ số này — cần kết nối lại kênh để cấp quyền doanh thu.</div></div>`}</div>`;
+      })()}
       <div class="card">
         <div class="section-title"><span>Video (${c.videoList.length} gần nhất) <span class="note">· ${nHit} nổ (từ ×${VIRAL_X} mức thường) · ${nLow} thấp (dưới ×${LOW_X})</span></span><span class="r"><button class="btn sm" data-act="copyTitles">Copy tiêu đề</button>
           <button class="chip ${state.vsort === 'views' ? 'on' : ''}" data-act="vsort" data-v="views">View cao nhất</button><button class="chip ${state.vsort === 'new' ? 'on' : ''}" data-act="vsort" data-v="new">Mới nhất</button></span></div>
-        <div class="tablewrap"><table><thead><tr><th class="l"></th><th class="l">Video</th><th>Lượt xem</th>${showRev ? '' : '<th>Like</th>'}<th>Bình luận</th>${showRev ? '<th>Thời lượng xem TB</th><th>% xem TB</th><th>Doanh thu tổng</th><th>RPM</th>' : ''}<th>${showRev ? 'Ngày đăng' : 'Đăng'}</th></tr></thead><tbody>${vrows}</tbody></table></div>${showRev ? `<p class="note" style="margin:8px 4px 0">${revOk(c) ? 'Doanh thu là số ước tính của YouTube Analytics (USD), thường trễ 1–2 ngày và có thể lệch nhẹ so với YouTube Studio. “Tổng” tính từ 10/2015 đến hôm qua, chỉ cho các video nằm trong danh sách này. “Thời lượng xem TB” là thời gian trung bình mỗi lượt xem (phút:giây), từ trước tới nay, giống “Thời lượng xem trung bình” trong YouTube Studio. “% xem TB” là tỷ lệ trung bình của video mà người xem đã xem. “RPM” là doanh thu ước tính trên 1.000 lượt xem (doanh thu tổng ÷ lượt xem × 1.000). Bấm vào một dòng để xem chi tiết video.' : 'Chưa có số doanh thu (“—”): ' + esc((c.revenue && c.revenue.msg) || 'chưa đồng bộ') + ' Sau khi kết nối lại kênh (cấp quyền doanh thu), bấm “Đồng bộ” để lấy số.'}</p>` : ''}
+        <div class="tablewrap"><table><thead><tr><th class="l"></th><th class="l"></th><th class="l">Video</th><th>Lượt xem</th>${showRev ? '' : '<th>Like</th>'}<th>Bình luận</th>${showRev ? '<th style="width:90px">Thời lượng xem TB</th><th>% xem TB</th><th style="width:100px">Doanh thu tổng</th><th>RPM</th>' : ''}<th>${showRev ? 'Ngày đăng' : 'Đăng'}</th></tr></thead><tbody>${vrows}</tbody></table></div>${showRev ? `<p class="note" style="margin:8px 4px 0">${revOk(c) ? 'Doanh thu là số ước tính của YouTube Analytics (USD), thường trễ 1–2 ngày và có thể lệch nhẹ so với YouTube Studio. “Tổng” tính từ 10/2015 đến hôm qua, chỉ cho các video nằm trong danh sách này. “Thời lượng xem TB” là thời gian trung bình mỗi lượt xem (phút:giây), từ trước tới nay, giống “Thời lượng xem trung bình” trong YouTube Studio. “% xem TB” là tỷ lệ trung bình của video mà người xem đã xem. “RPM” là doanh thu ước tính trên 1.000 lượt xem (doanh thu tổng ÷ lượt xem × 1.000). Bấm vào một dòng để xem chi tiết video.' : 'Chưa có số doanh thu (“—”): ' + esc((c.revenue && c.revenue.msg) || 'chưa đồng bộ') + ' Sau khi kết nối lại kênh (cấp quyền doanh thu), bấm “Đồng bộ” để lấy số.'}</p>` : ''}
       </div>
       <div class="card notecard"><div class="section-title"><span>📝 Ghi chú riêng cho kênh</span><span class="r">tự lưu khi bấm ra ngoài</span></div>
         <textarea id="note-box" data-note="${c.id}" placeholder="Ví dụ: đang thử đổi thumbnail từ 15/9…">${esc(notes[c.id] || '')}</textarea></div>
@@ -898,7 +925,7 @@
     const rows = list.slice().sort(sorters[state.sort]).map((c) => `
       <tr class="click" data-go="#/channel/${c.id}">
         <td class="l"><div class="chan">${avatar(c)}<div><div class="n">${esc(c.name)}${realRivals ? ` <a href="https://www.youtube.com/channel/${encodeURIComponent(c.id)}" target="_blank" rel="noopener" title="Mở kênh trên YouTube" class="note">↗</a>` : ''}</div>${c.kind === 'own' ? '<span class="tag mine">Của mình</span>' : ''}</div></div></td>
-        <td class="l"><span class="tag">${esc(c.niche)}</span>${isNichePaused(c.niche) ? ' <span class="tag" style="opacity:.7" title="Ngách này đang tạm dừng theo dõi">⏸</span>' : ''}</td>
+        <td class="l">${nicheTag(c.niche)}${isNichePaused(c.niche) ? ' <span class="tag" style="opacity:.7" title="Ngách này đang tạm dừng theo dõi">⏸</span>' : ''}</td>
         <td>${newCell(gain(c.subs, r), last(c.subs))}</td>
         <td>${newCell(gain(c.views, r), last(c.views))}</td>
         <td>${fmt(c.videos)}</td>
@@ -920,7 +947,7 @@
       <tr class="click" data-go="#/channel/${c.id}">
         <td class="l"><input type="checkbox" title="Chọn"></td>
         <td class="l"><div class="chan">${avatar(c)}<div><div class="n">${esc(c.name)}${realOwn ? ` <a href="https://www.youtube.com/channel/${encodeURIComponent(c.id)}" target="_blank" rel="noopener" title="Mở kênh trên YouTube" class="note">↗</a>` : ''}</div><span class="tag mine">Của mình</span></div></div></td>
-        <td class="l"><span class="tag">${esc(c.niche)}</span></td>
+        <td class="l">${nicheTag(c.niche)}</td>
         <td>${newCell(gain(c.subs, r), last(c.subs))}</td>
         <td>${newCell(gain(c.views, r), last(c.views))}</td>
         <td>${fmt(c.videos)}</td>
@@ -2133,7 +2160,7 @@
       const max = o.videoList.reduce((m, v) => Math.max(m, v.views), 0);
       return {
         id: o.id, kind: 'own', name: o.name, niche: o.niche, country: o.country, market: o.market || '', gmail: o.gmail || '', where: o.where || '', manager: o.manager || '', color: REAL_COLORS[i % REAL_COLORS.length], videos: o.videos,
-        subs: o.subs, views: o.views, comments: o.comments, watchMinutes28: o.watchMinutes28, syncedAt: o.syncedAt, revenue: o.revenue, unanswered: o.unansweredComments, noPost: !!o.noPost,
+        subs: o.subs, views: o.views, comments: o.comments, avgViewDuration: o.avgViewDuration, revenueDaily: o.revenueDaily, rpmDaily: o.rpmDaily, watchMinutesDaily: o.watchMinutesDaily, watchMinutes28: o.watchMinutes28, syncedAt: o.syncedAt, revenue: o.revenue, unanswered: o.unansweredComments, noPost: !!o.noPost,
         videoList: o.videoList.map((v) => ({ ...v, isNew: (Date.now() - new Date(v.date)) / 86400000 <= 2, isTop: max > 0 && v.views === max })),
       };
     });
@@ -2521,6 +2548,7 @@
         apiCall('/api/rivals/add', { channelId: c.data.channel.id, niche: c.niche, market: c.market })
           .then((r) => { toast(r.existed ? 'Kênh này đã có trong danh sách đối thủ' : `Đã nạp “${r.title}” làm đối thủ`); return loadRivals(); }).then(() => render()).catch((er) => toast(er.message));
       }
+      else if (a === 'detailMetric') { state.detailMetric = v; render(); }
       else if (a === 'dashRankAll') { state.dashRankAll = !state.dashRankAll; render(); }
       else if (a === 'dashRange') { state.dashRange = +v; render(); }
       else if (a === 'copyDashHits') {
@@ -2643,16 +2671,24 @@
   }, true);
   document.addEventListener('mousemove', (e) => {
     const svg = e.target.closest && e.target.closest('svg[data-chart]');
-    const tip = $('#tip');
-    if (!svg || !CHARTS[svg.dataset.chart]) { tip.hidden = true; return; }
+    const tip = $('#tip'), dot = $('#chartdot');
+    if (!svg || !CHARTS[svg.dataset.chart]) { tip.hidden = true; dot.hidden = true; return; }
     const ch = CHARTS[svg.dataset.chart];
     const rect = svg.getBoundingClientRect();
     const i = Math.max(0, Math.min(ch.values.length - 1, Math.round(((e.clientX - rect.left) / rect.width) * (ch.values.length - 1))));
     const offset = N - ch.values.length;
-    tip.innerHTML = `${dayLabel(offset + i)}: <b>${ch.values[i].toLocaleString('vi-VN')}</b>`;
+    const fmtFn = ch.fmt || fmt;
+    tip.innerHTML = `<span class="tip-day">${dayLabel(offset + i)}</span><span class="tip-val">${fmtFn(ch.values[i])}</span>`;
     tip.hidden = false;
-    tip.style.left = Math.min(e.clientX + 14, innerWidth - 150) + 'px';
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 170) + 'px';
     tip.style.top = e.clientY + 14 + 'px';
+    const pt = ch.pts[i];
+    if (pt) {
+      dot.style.background = ch.color || 'var(--accent)';
+      dot.style.left = (rect.left + (pt[0] / ch.W) * rect.width) + 'px';
+      dot.style.top = (rect.top + (pt[1] / ch.H) * rect.height) + 'px';
+      dot.hidden = false;
+    } else dot.hidden = true;
   });
   window.addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
   render();

@@ -404,13 +404,13 @@ module.exports = function makeGoogle(ctx) {
     const videos = [];
     for (let i = 0; i < ids.length; i += 50) {
       const v = await get(`${YT}/videos?part=snippet,statistics,status,contentDetails&id=${ids.slice(i, i + 50).join(',')}`, token);
-      (v.items || []).forEach((x) => videos.push({ id: x.id, seconds: isoSec((x.contentDetails || {}).duration), title: fixMojibake(x.snippet.title), date: x.snippet.publishedAt, views: +x.statistics.viewCount || 0, likes: +x.statistics.likeCount || 0, comments: +x.statistics.commentCount || 0, privacy: (x.status || {}).privacyStatus || '', upload: (x.status || {}).uploadStatus || '', rejection: (x.status || {}).rejectionReason || '', publishAt: (x.status || {}).publishAt || '' }));
+      (v.items || []).forEach((x) => videos.push({ id: x.id, seconds: isoSec((x.contentDetails || {}).duration), title: fixMojibake(x.snippet.title), date: x.snippet.publishedAt, thumb: (x.snippet.thumbnails && (x.snippet.thumbnails.medium || x.snippet.thumbnails.default) || {}).url || '', views: +x.statistics.viewCount || 0, likes: +x.statistics.likeCount || 0, comments: +x.statistics.commentCount || 0, privacy: (x.status || {}).privacyStatus || '', upload: (x.status || {}).uploadStatus || '', rejection: (x.status || {}).rejectionReason || '', publishAt: (x.status || {}).publishAt || '' }));
     }
     // Analytics: số liệu theo ngày 90 ngày gần nhất (đến hôm qua)
     const end = new Date(Date.now() - 86400000), start = new Date(Date.now() - DAYS * 86400000);
     let daily = [];
     try {
-      const a = await get(`${YTA}/reports?ids=channel==MINE&startDate=${isoDay(start)}&endDate=${isoDay(end)}&metrics=views,estimatedMinutesWatched,subscribersGained,subscribersLost,comments,likes&dimensions=day&sort=day`, token);
+      const a = await get(`${YTA}/reports?ids=channel==MINE&startDate=${isoDay(start)}&endDate=${isoDay(end)}&metrics=views,estimatedMinutesWatched,averageViewDuration,subscribersGained,subscribersLost,comments,likes&dimensions=day&sort=day`, token);
       const names = (a.columnHeaders || []).map((h) => h.name);
       daily = (a.rows || []).map((r) => Object.fromEntries(names.map((n, i) => [n, r[i]])));
     } catch (e) { daily = []; }
@@ -457,6 +457,14 @@ module.exports = function makeGoogle(ctx) {
     const sum = gains.reduce((t, g) => t + Math.max(0, g), 0);
     return sum > current && sum > 0 ? gains.map((g) => (g > 0 ? (g * current) / sum : g)) : gains;
   }
+  // Dựng chuỗi 90 ngày từ 1 dãy GIÁ TRỊ TRỰC TIẾP theo ngày (không cộng dồn, khác cumulative()) — dùng cho thời lượng xem TB, doanh thu, RPM.
+  // valuesDesc[0] = hôm qua (mới nhất), phần tử sau lùi dần về quá khứ; hôm nay chưa có số nên lặp lại số hôm qua.
+  function toDailyArray(valuesDesc) {
+    const out = new Array(DAYS).fill(0);
+    for (let k = 0; k < valuesDesc.length && DAYS - 2 - k >= 0; k++) out[DAYS - 2 - k] = valuesDesc[k];
+    out[DAYS - 1] = out[DAYS - 2];
+    return out;
+  }
   function todayDelta(hourly, key, current) {
     const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
     const before = (hourly || []).filter((h) => new Date(h.t) < midnight).pop();
@@ -488,6 +496,11 @@ module.exports = function makeGoogle(ctx) {
       const net = dailyDesc.map((d) => (d.subscribersGained || 0) - (d.subscribersLost || 0));
       const cViews = dailyDesc.map((d) => d.views || 0);
       const cComments = dailyDesc.map((d) => d.comments || 0);
+      const cAvgDur = dailyDesc.map((d) => +d.averageViewDuration || 0);
+      const cWatchMin = dailyDesc.map((d) => +d.estimatedMinutesWatched || 0);
+      const revDesc = c.revenueScope ? (((s.revenue || {}).daily) || []).slice().reverse() : [];
+      const cRevenue = revDesc.map((d) => +d.rev || 0);
+      const cRpm = revDesc.map((d, i) => { const v = (dailyDesc[i] || {}).views || 0; return v > 0 ? Math.round(((+d.rev || 0) / v) * 1000 * 100) / 100 : 0; });
       const cur = s.channel;
       return {
         id, name: c.title, handle: c.handle, niche: c.niche || 'Chưa đặt ngách', country: c.country || '', market: c.market || '', gmail: c.gmail || '', where: c.where || '', manager: c.manager || '', syncedAt: s.syncedAt, hiddenSubs: s.hiddenSubs,
@@ -495,9 +508,13 @@ module.exports = function makeGoogle(ctx) {
         subs: cumulative(cur.subs, fit(cur.subs, net), todayDelta(s.hourly, 'subs', cur.subs)),
         views: cumulative(cur.views, fit(cur.views, cViews), todayDelta(s.hourly, 'views', cur.views)),
         comments: cumulative(s.commentsTotal, fit(s.commentsTotal, cComments), 0),
+        avgViewDuration: toDailyArray(cAvgDur),
+        revenueDaily: c.revenueScope ? toDailyArray(cRevenue) : null,
+        rpmDaily: c.revenueScope ? toDailyArray(cRpm) : null,
+        watchMinutesDaily: toDailyArray(cWatchMin),
         watchMinutes28: dailyDesc.slice(0, 28).reduce((t, d) => t + (d.estimatedMinutesWatched || 0), 0),
         revenue: c.revenueScope ? revenueOf(s.revenue, Object.fromEntries((s.daily || []).map((x) => [x.day, +x.views || 0]))) : { state: 'noscope', msg: 'Kênh này kết nối trước khi có quyền doanh thu — hãy kết nối lại kênh (cấp quyền xem báo cáo tiền).' },
-        videoList: (s.videos || []).slice(0, 50).map((v) => ({ id: v.id, title: v.title, views: v.views, likes: v.likes, comments: v.comments, date: v.date, url: `https://www.youtube.com/watch?v=${v.id}`, seconds: v.seconds != null ? v.seconds : null, v7: s.videoRecent && s.videoRecent[v.id] ? s.videoRecent[v.id].v7 : null, p7: s.videoRecent && s.videoRecent[v.id] ? s.videoRecent[v.id].p7 : null, privacy: v.privacy || '', upload: v.upload || '', rejection: v.rejection || '', publishAt: v.publishAt || '', watchMin: s.videoStats ? ((s.videoStats[v.id] || {}).min || 0) : null, avgDur: s.videoStats && s.videoStats[v.id] && s.videoStats[v.id].avg != null ? s.videoStats[v.id].avg : null, avgPct: s.videoStats &&s.videoStats[v.id] && s.videoStats[v.id].pct != null ? s.videoStats[v.id].pct : null, rev28: s.revenue && s.revenue.state === 'ok' ? (s.revenue.perVideo28[v.id] || 0) : null, revAll: s.revenue && s.revenue.state === 'ok' ? (s.revenue.perVideoAll[v.id] || 0) : null })),
+        videoList: (s.videos || []).slice(0, 50).map((v) => ({ id: v.id, title: v.title, thumb: v.thumb || '', views: v.views, likes: v.likes, comments: v.comments, date: v.date, url: `https://www.youtube.com/watch?v=${v.id}`, seconds: v.seconds != null ? v.seconds : null, v7: s.videoRecent && s.videoRecent[v.id] ? s.videoRecent[v.id].v7 : null, p7: s.videoRecent && s.videoRecent[v.id] ? s.videoRecent[v.id].p7 : null, privacy: v.privacy || '', upload: v.upload || '', rejection: v.rejection || '', publishAt: v.publishAt || '', watchMin: s.videoStats ? ((s.videoStats[v.id] || {}).min || 0) : null, avgDur: s.videoStats && s.videoStats[v.id] && s.videoStats[v.id].avg != null ? s.videoStats[v.id].avg : null, avgPct: s.videoStats &&s.videoStats[v.id] && s.videoStats[v.id].pct != null ? s.videoStats[v.id].pct : null, rev28: s.revenue && s.revenue.state === 'ok' ? (s.revenue.perVideo28[v.id] || 0) : null, revAll: s.revenue && s.revenue.state === 'ok' ? (s.revenue.perVideoAll[v.id] || 0) : null })),
         unansweredComments: (readCmt(id) || {}).count != null ? (readCmt(id) || {}).count : null, commentsScanAt: (readCmt(id) || {}).at || null,
         needsReauth: !!c.needsReauth, lastError: c.lastError || '', noPost: !!c.noPost,
       };
